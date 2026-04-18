@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,16 +33,14 @@ export default function AdminLoginForm() {
     setServerError("");
 
     try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
       });
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        setServerError(json.error ?? "Invalid credentials. Please try again.");
+      if (!result?.ok || result?.error) {
+        setServerError("Invalid email or password. Please try again.");
         setSubmitting(false);
         return;
       }

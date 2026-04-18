@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──────────────────────────────────────────────────────────
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum BlockedReason {
+  MANUAL
+  BOOKING
+  EXTERNAL
+}
+
+// ── Models ─────────────────────────────────────────────────────────
+
+model Property {
+  id            String        @id @default(cuid())
+  name          String
+  description   String
+  location      String
+  nightlyRate   Decimal
+  amenities     String[]
+  coverImageUrl String        @default("")
+  images        String[]
+  blockedDates  BlockedDate[]
+  bookings      Booking[]
+  icalFeeds     ICalFeed[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Booking {
+  id                    String        @id @default(cuid())
+  propertyId            String
+  property              Property      @relation(fields: [propertyId], references: [id])
+  guestName             String
+  guestEmail            String
+  guestPhone            String
+  checkIn               DateTime
+  checkOut              DateTime
+  totalNights           Int
+  totalAmount           Decimal
+  status                BookingStatus @default(PENDING)
+  stripePaymentIntentId String        @unique
+  bookingReference      String        @unique
+  blockedDates          BlockedDate[]
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+model BlockedDate {
+  id         String        @id @default(cuid())
+  propertyId String
+  property   Property      @relation(fields: [propertyId], references: [id])
+  date       DateTime
+  reason     BlockedReason
+  bookingId  String?
+  booking    Booking?      @relation(fields: [bookingId], references: [id])
+  iCalFeedId String?
+  iCalFeed   ICalFeed?     @relation(fields: [iCalFeedId], references: [id])
+  createdAt  DateTime      @default(now())
+}
+
+model ICalFeed {
+  id           String        @id @default(cuid())
+  propertyId   String
+  property     Property      @relation(fields: [propertyId], references: [id])
+  name         String
+  url          String
+  lastSyncedAt DateTime?
+  blockedDates BlockedDate[]
+  createdAt    DateTime      @default(now())
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}

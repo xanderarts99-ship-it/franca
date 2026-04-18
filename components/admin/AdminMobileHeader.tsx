@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Menu, X, LayoutDashboard, Building2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +65,10 @@ export default function AdminMobileHeader() {
                 </Link>
               );
             })}
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-stone-light/50 hover:text-white hover:bg-white/5 transition-all">
+            <button
+              onClick={() => signOut({ callbackUrl: "/admin/login" })}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-stone-light/50 hover:text-white hover:bg-white/5 transition-all"
+            >
               <LogOut size={15} />
               Sign out
             </button>
