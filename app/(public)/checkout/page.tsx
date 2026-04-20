@@ -4,23 +4,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import CheckoutForm from "@/components/public/CheckoutForm";
 import OrderSummary from "@/components/public/OrderSummary";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Complete Your Booking",
-};
-
-/* ── Mock property lookup (replace with DB query) ─────────────── */
-const MOCK_PROPERTIES: Record<string, { name: string; location: string; nightlyRate: number }> = {
-  "prop-1": { name: "Oceanfront Villa",   location: "Miami Beach, FL",  nightlyRate: 420 },
-  "prop-2": { name: "Mountain Chalet",    location: "Aspen, CO",         nightlyRate: 380 },
-  "prop-3": { name: "Tropical Bungalow",  location: "Key West, FL",      nightlyRate: 295 },
-  "prop-4": { name: "Desert Retreat",     location: "Sedona, AZ",        nightlyRate: 260 },
-  "prop-5": { name: "Lakeside Cottage",   location: "Lake Tahoe, CA",    nightlyRate: 340 },
-  "prop-6": { name: "City Penthouse",     location: "New York, NY",      nightlyRate: 550 },
-  "prop-7": { name: "Coastal Cottage",    location: "Malibu, CA",        nightlyRate: 490 },
-  "prop-8": { name: "Vineyard Estate",    location: "Napa Valley, CA",   nightlyRate: 620 },
-  "prop-9": { name: "Forest Cabin",       location: "Portland, OR",      nightlyRate: 210 },
-  "prop-10":{ name: "Island Hideaway",    location: "Maui, HI",          nightlyRate: 680 },
 };
 
 interface PageProps {
@@ -35,13 +22,14 @@ function parseDateLocal(str: string): Date {
 export default async function CheckoutPage({ searchParams }: PageProps) {
   const { propertyId, checkIn, checkOut } = await searchParams;
 
-  /* Validate all params are present */
   if (!propertyId || !checkIn || !checkOut) redirect("/");
 
-  const property = MOCK_PROPERTIES[propertyId];
+  const property = await prisma.property.findUnique({
+    where: { id: propertyId },
+    select: { name: true, location: true, nightlyRate: true },
+  });
   if (!property) redirect("/");
 
-  /* Validate dates */
   const checkInDate  = parseDateLocal(checkIn);
   const checkOutDate = parseDateLocal(checkOut);
   const nights = Math.round(
@@ -49,7 +37,8 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   );
   if (nights <= 0) redirect(`/properties/${propertyId}`);
 
-  const total = nights * property.nightlyRate;
+  const nightlyRate = Number(property.nightlyRate);
+  const total = nights * nightlyRate;
 
   return (
     <div className="min-h-screen bg-cream">
@@ -84,7 +73,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             checkIn={checkIn}
             checkOut={checkOut}
             nights={nights}
-            nightlyRate={property.nightlyRate}
+            nightlyRate={nightlyRate}
             total={total}
           />
 
@@ -95,7 +84,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             checkIn={checkIn}
             checkOut={checkOut}
             nights={nights}
-            nightlyRate={property.nightlyRate}
+            nightlyRate={nightlyRate}
             total={total}
           />
         </div>

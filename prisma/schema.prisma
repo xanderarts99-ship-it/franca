@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ── Enums ──────────────────────────────────────────────────────────
@@ -29,6 +28,10 @@ model Property {
   description   String
   location      String
   nightlyRate   Decimal
+  guests        Int           @default(6)
+  bedrooms      Int           @default(3)
+  beds          Int           @default(4)
+  bathrooms     Int           @default(2)
   amenities     String[]
   coverImageUrl String        @default("")
   images        String[]

@@ -5,61 +5,7 @@ import PhotoGrid from "@/components/public/PhotoGrid";
 import BookingWidget from "@/components/public/BookingWidget";
 import AvailabilityCalendar from "@/components/public/AvailabilityCalendar";
 import { notFound } from "next/navigation";
-
-/* ── Mock data (replace with DB query once Prisma is wired up) ── */
-const MOCK_PROPERTIES: Record<string, {
-  id: string;
-  name: string;
-  location: string;
-  description: string;
-  nightlyRate: number;
-  amenities: string[];
-  images: string[];
-  blockedDates: string[];
-}> = {
-  "prop-1": {
-    id: "prop-1",
-    name: "Oceanfront Villa",
-    location: "Miami Beach, FL",
-    description:
-      "Wake up to the sound of waves in this stunning oceanfront villa. Floor-to-ceiling windows frame an endless Atlantic horizon, while the private infinity pool blends seamlessly into the sea beyond. Designed for those who demand the very best, this five-bedroom retreat offers chef-grade appliances, a home theatre, and direct beach access — all just steps from Miami's most vibrant dining and culture.",
-    nightlyRate: 420,
-    amenities: [
-      "Ocean View","Private Pool","WiFi","Air Conditioning","Full Kitchen",
-      "Beach Access","Home Theatre","Parking","BBQ","Outdoor Shower",
-    ],
-    images: [],
-    blockedDates: [],
-  },
-  "prop-2": {
-    id: "prop-2",
-    name: "Mountain Chalet",
-    location: "Aspen, CO",
-    description:
-      "Perched above the treeline with panoramic views of the Elk Mountains, this timber-frame chalet is the definitive alpine escape. The oversized stone fireplace, hand-hewn wooden beams, and plush après-ski lounge set the tone. Step out the back door onto groomed trails, or soak in the outdoor hot tub under a blanket of stars. Sleeps eight with ease.",
-    nightlyRate: 380,
-    amenities: [
-      "Mountain View","Hot Tub","Fireplace","Ski Access","WiFi",
-      "Full Kitchen","Parking","Game Room","Sauna","Fire Pit",
-    ],
-    images: [],
-    blockedDates: [],
-  },
-  "prop-3": {
-    id: "prop-3",
-    name: "Tropical Bungalow",
-    location: "Key West, FL",
-    description:
-      "Hidden behind a canopy of bougainvillea, this charming Key West bungalow is your private slice of paradise. Hardwood floors, louvred shutters, and a wraparound porch bring the tropical breeze indoors. Stroll to Duval Street in minutes, or spend the day swaying in a hammock with a cold drink. The perfect base for reef snorkelling, sunset cruises, and complete disconnection.",
-    nightlyRate: 295,
-    amenities: [
-      "Garden","Beach Access","Hammock","WiFi","Air Conditioning",
-      "Bicycle Hire","Porch","Full Kitchen","Outdoor Shower","Parking",
-    ],
-    images: [],
-    blockedDates: [],
-  },
-};
+import { prisma } from "@/lib/prisma";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -67,7 +13,10 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const property = MOCK_PROPERTIES[id];
+  const property = await prisma.property.findUnique({
+    where: { id },
+    select: { name: true, location: true, description: true },
+  });
   if (!property) return { title: "Property Not Found" };
   return {
     title: `${property.name} — ${property.location}`,
@@ -88,9 +37,21 @@ const AMENITY_ICONS: Record<string, string> = {
 
 export default async function PropertyDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const property = MOCK_PROPERTIES[id] ?? null;
+
+  const property = await prisma.property.findUnique({
+    where: { id },
+    include: {
+      blockedDates: {
+        select: { date: true },
+      },
+    },
+  });
 
   if (!property) notFound();
+
+  const blockedDates = property.blockedDates.map((b) =>
+    b.date.toISOString().slice(0, 10)
+  );
 
   return (
     <div className="min-h-screen bg-cream">
@@ -177,7 +138,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
 
             {/* Availability calendar */}
             <section className="py-8">
-              <AvailabilityCalendar blockedDates={property.blockedDates} />
+              <AvailabilityCalendar blockedDates={blockedDates} />
             </section>
           </div>
 
@@ -185,8 +146,8 @@ export default async function PropertyDetailPage({ params }: PageProps) {
           <div className="lg:block">
             <BookingWidget
               propertyId={property.id}
-              nightlyRate={property.nightlyRate}
-              blockedDates={property.blockedDates}
+              nightlyRate={Number(property.nightlyRate)}
+              blockedDates={blockedDates}
             />
           </div>
         </div>

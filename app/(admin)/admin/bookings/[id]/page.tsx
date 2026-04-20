@@ -4,140 +4,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, MapPin, User, Mail, Phone, Hash, CreditCard, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CancelBookingButton from "@/components/admin/CancelBookingButton";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Booking Detail — Admin" };
 
 type Status = "PENDING" | "CONFIRMED" | "CANCELLED";
-
-interface MockBooking {
-  id: string;
-  bookingReference: string;
-  status: Status;
-  propertyId: string;
-  propertyName: string;
-  location: string;
-  guestName: string;
-  guestEmail: string;
-  guestPhone: string;
-  checkIn: string;
-  checkOut: string;
-  totalNights: number;
-  nightlyRate: number;
-  totalAmount: number;
-  stripePaymentIntentId: string;
-  createdAt: string;
-}
-
-const MOCK_BOOKINGS: Record<string, MockBooking> = {
-  b1: {
-    id: "b1",
-    bookingReference: "VR-2026-000001",
-    status: "CONFIRMED",
-    propertyId: "prop-1",
-    propertyName: "Oceanfront Villa",
-    location: "Miami Beach, FL",
-    guestName: "Jane Smith",
-    guestEmail: "jane@example.com",
-    guestPhone: "+1 (555) 000-0000",
-    checkIn: "2026-08-01",
-    checkOut: "2026-08-05",
-    totalNights: 4,
-    nightlyRate: 420,
-    totalAmount: 1680,
-    stripePaymentIntentId: "pi_3ABC123mock",
-    createdAt: "2026-04-10",
-  },
-  b2: {
-    id: "b2",
-    bookingReference: "VR-2026-000002",
-    status: "CONFIRMED",
-    propertyId: "prop-2",
-    propertyName: "Mountain Chalet",
-    location: "Aspen, CO",
-    guestName: "Marcus Webb",
-    guestEmail: "marcus@example.com",
-    guestPhone: "+1 (555) 111-2222",
-    checkIn: "2026-07-14",
-    checkOut: "2026-07-21",
-    totalNights: 7,
-    nightlyRate: 380,
-    totalAmount: 2660,
-    stripePaymentIntentId: "pi_3DEF456mock",
-    createdAt: "2026-04-09",
-  },
-  b3: {
-    id: "b3",
-    bookingReference: "VR-2026-000003",
-    status: "PENDING",
-    propertyId: "prop-6",
-    propertyName: "City Penthouse",
-    location: "New York, NY",
-    guestName: "Priya Nair",
-    guestEmail: "priya@example.com",
-    guestPhone: "+1 (555) 333-4444",
-    checkIn: "2026-06-20",
-    checkOut: "2026-06-23",
-    totalNights: 3,
-    nightlyRate: 550,
-    totalAmount: 1650,
-    stripePaymentIntentId: "pi_3GHI789mock",
-    createdAt: "2026-04-18",
-  },
-  b4: {
-    id: "b4",
-    bookingReference: "VR-2026-000004",
-    status: "CONFIRMED",
-    propertyId: "prop-8",
-    propertyName: "Vineyard Estate",
-    location: "Napa Valley, CA",
-    guestName: "Tom Hargreaves",
-    guestEmail: "tom@example.com",
-    guestPhone: "+1 (555) 555-6666",
-    checkIn: "2026-09-05",
-    checkOut: "2026-09-10",
-    totalNights: 5,
-    nightlyRate: 620,
-    totalAmount: 3100,
-    stripePaymentIntentId: "pi_3JKL012mock",
-    createdAt: "2026-04-07",
-  },
-  b5: {
-    id: "b5",
-    bookingReference: "VR-2026-000005",
-    status: "CANCELLED",
-    propertyId: "prop-3",
-    propertyName: "Tropical Bungalow",
-    location: "Key West, FL",
-    guestName: "Sofia Reyes",
-    guestEmail: "sofia@example.com",
-    guestPhone: "+1 (555) 777-8888",
-    checkIn: "2026-05-10",
-    checkOut: "2026-05-14",
-    totalNights: 4,
-    nightlyRate: 295,
-    totalAmount: 1180,
-    stripePaymentIntentId: "pi_3MNO345mock",
-    createdAt: "2026-04-01",
-  },
-  b6: {
-    id: "b6",
-    bookingReference: "VR-2026-000006",
-    status: "CONFIRMED",
-    propertyId: "prop-10",
-    propertyName: "Island Hideaway",
-    location: "Maui, HI",
-    guestName: "David Kim",
-    guestEmail: "david@example.com",
-    guestPhone: "+1 (555) 999-0000",
-    checkIn: "2026-10-01",
-    checkOut: "2026-10-08",
-    totalNights: 7,
-    nightlyRate: 680,
-    totalAmount: 4760,
-    stripePaymentIntentId: "pi_3PQR678mock",
-    createdAt: "2026-04-15",
-  },
-};
 
 const STATUS_CONFIG: Record<Status, { label: string; className: string; icon: React.ElementType }> = {
   CONFIRMED: {
@@ -157,9 +28,8 @@ const STATUS_CONFIG: Record<Status, { label: string; className: string; icon: Re
   },
 };
 
-function formatDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+function formatDate(date: Date) {
+  return date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -170,7 +40,7 @@ function formatDate(iso: string) {
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3 py-3 border-b border-warm-border last:border-0">
-      <Icon size={13} className="text-stone-light mt-0.5 flex-shrink-0" />
+      <Icon size={13} className="text-stone-light mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-[10px] uppercase tracking-wider font-semibold text-stone-light mb-0.5">{label}</p>
         <p className="text-sm text-charcoal font-medium break-all">{value}</p>
@@ -185,11 +55,21 @@ interface PageProps {
 
 export default async function BookingDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const booking = MOCK_BOOKINGS[id];
+
+  const booking = await prisma.booking.findUnique({
+    where: { id },
+    include: {
+      property: { select: { name: true, location: true, nightlyRate: true } },
+    },
+  });
+
   if (!booking) notFound();
 
-  const { label, className, icon: StatusIcon } = STATUS_CONFIG[booking.status];
-  const canCancel = booking.status !== "CANCELLED";
+  const status = booking.status as Status;
+  const { label, className, icon: StatusIcon } = STATUS_CONFIG[status];
+  const canCancel = status !== "CANCELLED";
+  const nightlyRate = Number(booking.property.nightlyRate);
+  const totalAmount = Number(booking.totalAmount);
 
   return (
     <div className="max-w-3xl">
@@ -236,10 +116,10 @@ export default async function BookingDetailPage({ params }: PageProps) {
           <h2 className="font-serif text-base font-semibold text-charcoal mb-1">Stay</h2>
           <div className="flex items-center gap-1.5 mb-4">
             <MapPin size={11} className="text-stone-light" />
-            <span className="text-xs text-stone">{booking.location}</span>
+            <span className="text-xs text-stone">{booking.property.location}</span>
           </div>
 
-          <p className="font-medium text-charcoal text-sm mb-4">{booking.propertyName}</p>
+          <p className="font-medium text-charcoal text-sm mb-4">{booking.property.name}</p>
 
           <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-[#FAFAF7] rounded-xl p-3">
@@ -261,8 +141,8 @@ export default async function BookingDetailPage({ params }: PageProps) {
           {/* Price breakdown */}
           <div className="space-y-1.5 text-xs text-stone border-t border-warm-border pt-3">
             <div className="flex justify-between">
-              <span>${booking.nightlyRate.toLocaleString()} × {booking.totalNights} nights</span>
-              <span className="text-charcoal">${(booking.nightlyRate * booking.totalNights).toLocaleString()}</span>
+              <span>${nightlyRate.toLocaleString()} × {booking.totalNights} nights</span>
+              <span className="text-charcoal">${(nightlyRate * booking.totalNights).toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span>Booking fee</span>
@@ -270,7 +150,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
             </div>
             <div className="flex justify-between font-semibold text-charcoal text-sm pt-1.5 border-t border-warm-border">
               <span>Total</span>
-              <span>${booking.totalAmount.toLocaleString()}</span>
+              <span>${totalAmount.toLocaleString()}</span>
             </div>
           </div>
         </div>

@@ -4,13 +4,15 @@
  * Usage:
  *   ADMIN_EMAIL=franca@example.com ADMIN_PASSWORD=yourpassword \
  *     npx tsx prisma/reset-admin-password.ts
- *
- * If ADMIN_EMAIL / ADMIN_PASSWORD are not set, falls back to the defaults below.
  */
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const email    = process.env.ADMIN_EMAIL    ?? "admin@rammiesvacation.com";

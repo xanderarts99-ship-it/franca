@@ -10,51 +10,18 @@ import {
   Phone,
   Hash,
 } from "lucide-react";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Booking Confirmed",
-};
-
-/* ── Mock booking lookup (replace with DB query) ──────────────── */
-interface MockBooking {
-  bookingReference: string;
-  status: "PENDING" | "CONFIRMED" | "CANCELLED";
-  propertyName: string;
-  location: string;
-  guestName: string;
-  guestEmail: string;
-  guestPhone: string;
-  checkIn: string;
-  checkOut: string;
-  totalNights: number;
-  nightlyRate: number;
-  totalAmount: number;
-}
-
-const MOCK_BOOKINGS: Record<string, MockBooking> = {
-  "booking-demo-1": {
-    bookingReference: "VR-2026-000001",
-    status: "PENDING",
-    propertyName: "Oceanfront Villa",
-    location: "Miami Beach, FL",
-    guestName: "Jane Smith",
-    guestEmail: "jane@example.com",
-    guestPhone: "+1 (555) 000-0000",
-    checkIn: "2026-08-01",
-    checkOut: "2026-08-05",
-    totalNights: 4,
-    nightlyRate: 420,
-    totalAmount: 1680,
-  },
 };
 
 interface PageProps {
   searchParams: Promise<{ bookingId?: string }>;
 }
 
-function formatDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+function formatDate(date: Date) {
+  return date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -73,7 +40,7 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-3 py-3 border-b border-warm-border last:border-0">
-      <Icon size={14} className="text-stone-light mt-0.5 flex-shrink-0" />
+      <Icon size={14} className="text-stone-light mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-[10px] uppercase tracking-wider font-semibold text-stone-light mb-0.5">
           {label}
@@ -89,8 +56,17 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
 
   if (!bookingId) redirect("/");
 
-  const booking = MOCK_BOOKINGS[bookingId];
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      property: { select: { name: true, location: true, nightlyRate: true } },
+    },
+  });
+
   if (!booking || booking.status === "CANCELLED") redirect("/");
+
+  const nightlyRate = Number(booking.property.nightlyRate);
+  const totalAmount = Number(booking.totalAmount);
 
   return (
     <div className="min-h-screen bg-cream">
@@ -140,11 +116,11 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
             {/* Property info */}
             <div className="text-center mb-6">
               <h2 className="font-serif text-xl font-semibold text-charcoal">
-                {booking.propertyName}
+                {booking.property.name}
               </h2>
               <div className="flex items-center justify-center gap-1.5 mt-1">
                 <MapPin size={11} className="text-stone-light" />
-                <span className="text-xs text-stone">{booking.location}</span>
+                <span className="text-xs text-stone">{booking.property.location}</span>
               </div>
             </div>
 
@@ -185,11 +161,11 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
             <div className="bg-cream rounded-xl p-4 space-y-2">
               <div className="flex justify-between text-sm text-stone">
                 <span>
-                  ${booking.nightlyRate.toLocaleString()} × {booking.totalNights} night
+                  ${nightlyRate.toLocaleString()} × {booking.totalNights} night
                   {booking.totalNights > 1 ? "s" : ""}
                 </span>
                 <span className="text-charcoal">
-                  ${(booking.nightlyRate * booking.totalNights).toLocaleString()}
+                  ${(nightlyRate * booking.totalNights).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between text-sm text-stone">
@@ -199,7 +175,7 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
               <div className="flex justify-between items-center pt-2 mt-1 border-t border-warm-border">
                 <span className="font-semibold text-charcoal text-sm">Total charged</span>
                 <span className="font-serif text-2xl font-semibold text-charcoal">
-                  ${booking.totalAmount.toLocaleString()}
+                  ${totalAmount.toLocaleString()}
                 </span>
               </div>
             </div>

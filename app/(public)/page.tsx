@@ -2,95 +2,25 @@ import type { Metadata } from "next";
 import PropertyCard from "@/components/public/PropertyCard";
 import { ArrowDown } from "lucide-react";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Rammies Vacation — Handpicked Vacation Rentals",
 };
 
-const MOCK_PROPERTIES = [
-  {
-    id: "prop-1",
-    name: "Oceanfront Villa",
-    location: "Miami Beach, FL",
-    nightlyRate: 420,
-    coverImageUrl: null,
-    amenities: ["Ocean View", "Private Pool", "WiFi"],
-  },
-  {
-    id: "prop-2",
-    name: "Mountain Chalet",
-    location: "Aspen, CO",
-    nightlyRate: 380,
-    coverImageUrl: null,
-    amenities: ["Hot Tub", "Fireplace", "Ski Access"],
-  },
-  {
-    id: "prop-3",
-    name: "Tropical Bungalow",
-    location: "Key West, FL",
-    nightlyRate: 295,
-    coverImageUrl: null,
-    amenities: ["Beach Access", "Garden", "Hammock"],
-  },
-  {
-    id: "prop-4",
-    name: "Desert Retreat",
-    location: "Sedona, AZ",
-    nightlyRate: 260,
-    coverImageUrl: null,
-    amenities: ["Hot Tub", "Red Rock Views", "Patio"],
-  },
-  {
-    id: "prop-5",
-    name: "Lakeside Cottage",
-    location: "Lake Tahoe, CA",
-    nightlyRate: 340,
-    coverImageUrl: null,
-    amenities: ["Lake Access", "Kayaks", "Deck"],
-  },
-  {
-    id: "prop-6",
-    name: "City Penthouse",
-    location: "New York, NY",
-    nightlyRate: 550,
-    coverImageUrl: null,
-    amenities: ["Skyline View", "Rooftop", "Gym"],
-  },
-  {
-    id: "prop-7",
-    name: "Coastal Cottage",
-    location: "Malibu, CA",
-    nightlyRate: 490,
-    coverImageUrl: null,
-    amenities: ["Ocean View", "Private Beach", "BBQ"],
-  },
-  {
-    id: "prop-8",
-    name: "Vineyard Estate",
-    location: "Napa Valley, CA",
-    nightlyRate: 620,
-    coverImageUrl: null,
-    amenities: ["Wine Cellar", "Pool", "Gardens"],
-  },
-  {
-    id: "prop-9",
-    name: "Forest Cabin",
-    location: "Portland, OR",
-    nightlyRate: 210,
-    coverImageUrl: null,
-    amenities: ["Hot Tub", "Fire Pit", "Hiking"],
-  },
-  {
-    id: "prop-10",
-    name: "Island Hideaway",
-    location: "Maui, HI",
-    nightlyRate: 680,
-    coverImageUrl: null,
-    amenities: ["Ocean View", "Pool", "Snorkeling"],
-  },
-];
+export default async function HomePage() {
+  const properties = await prisma.property.findMany({
+    select: {
+      id: true,
+      name: true,
+      location: true,
+      nightlyRate: true,
+      coverImageUrl: true,
+      amenities: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
 
-export default function HomePage() {
   return (
     <>
       {/* ── Hero ──────────────────────────────────────────────── */}
@@ -109,7 +39,7 @@ export default function HomePage() {
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           <p className="text-xs uppercase tracking-[0.3em] text-sand mb-5 font-medium">
-            10 Curated Properties
+            {properties.length} Curated Properties
           </p>
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold text-white leading-[1.05] tracking-tight mb-6">
             Find Your
@@ -141,7 +71,7 @@ export default function HomePage() {
       <section className="bg-surface border-y border-warm-border">
         <div className="max-w-4xl mx-auto px-4 py-8 grid grid-cols-3 divide-x divide-warm-border text-center">
           {[
-            { value: "10", label: "Properties" },
+            { value: String(properties.length), label: "Properties" },
             { value: "100%", label: "Private Owned" },
             { value: "5★", label: "Guest Rated" },
           ].map(({ value, label }) => (
@@ -179,8 +109,13 @@ export default function HomePage() {
 
           {/* Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {MOCK_PROPERTIES.map((property, i) => (
-              <PropertyCard key={property.id} {...property} index={i} />
+            {properties.map((property, i) => (
+              <PropertyCard
+                key={property.id}
+                {...property}
+                nightlyRate={Number(property.nightlyRate)}
+                index={i}
+              />
             ))}
           </div>
         </div>
@@ -193,7 +128,7 @@ export default function HomePage() {
             Ready to book your stay?
           </h2>
           <p className="text-white/60 text-sm leading-relaxed mb-8">
-            Browse all 10 properties and secure your dates in minutes. No
+            Browse all {properties.length} properties and secure your dates in minutes. No
             hidden fees, no surprises.
           </p>
           <Link
