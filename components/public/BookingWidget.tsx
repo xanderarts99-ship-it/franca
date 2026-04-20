@@ -1,18 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useContext } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Users, AlertCircle } from "lucide-react";
+import { CalendarDays, Users, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PropertyDateContext } from "@/components/public/PropertyCalendar";
 
 interface BookingWidgetProps {
   propertyId: string;
   nightlyRate: number;
-  blockedDates?: string[]; // ISO date strings "YYYY-MM-DD"
-}
-
-function toDateString(date: Date): string {
-  return date.toISOString().split("T")[0];
 }
 
 function parseLocal(str: string): Date {
@@ -31,63 +27,28 @@ function formatDisplay(str: string): string {
 export default function BookingWidget({
   propertyId,
   nightlyRate,
-  blockedDates = [],
 }: BookingWidgetProps) {
   const router = useRouter();
-  const today = toDateString(new Date());
-
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [error, setError] = useState("");
+  const { checkIn, checkOut, clearDates } = useContext(PropertyDateContext);
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
     const diff =
       (parseLocal(checkOut).getTime() - parseLocal(checkIn).getTime()) /
       (1000 * 60 * 60 * 24);
-    return diff > 0 ? diff : 0;
+    return diff > 0 ? Math.round(diff) : 0;
   }, [checkIn, checkOut]);
 
   const total = nights * nightlyRate;
 
-  const hasBlockedDateInRange = useMemo(() => {
-    if (!checkIn || !checkOut || nights <= 0) return false;
-    const start = parseLocal(checkIn).getTime();
-    const end = parseLocal(checkOut).getTime();
-    return blockedDates.some((d) => {
-      const t = parseLocal(d).getTime();
-      return t >= start && t < end;
-    });
-  }, [checkIn, checkOut, nights, blockedDates]);
-
-  function handleCheckInChange(val: string) {
-    setCheckIn(val);
-    setError("");
-    if (checkOut && val >= checkOut) setCheckOut("");
-  }
-
-  function handleCheckOutChange(val: string) {
-    setCheckOut(val);
-    setError("");
-  }
-
   function handleBook() {
-    if (!checkIn || !checkOut) {
-      setError("Please select both check-in and check-out dates.");
-      return;
-    }
-    if (nights <= 0) {
-      setError("Check-out must be after check-in.");
-      return;
-    }
-    if (hasBlockedDateInRange) {
-      setError("Some dates in your range are unavailable. Please adjust your stay.");
-      return;
-    }
+    if (!checkIn || !checkOut || nights <= 0) return;
     router.push(
       `/checkout?propertyId=${propertyId}&checkIn=${checkIn}&checkOut=${checkOut}`
     );
   }
+
+  const canBook = checkIn && checkOut && nights > 0;
 
   return (
     <div className="bg-surface border border-warm-border rounded-[var(--radius-card)] shadow-lg p-6 sticky top-24">
@@ -99,62 +60,58 @@ export default function BookingWidget({
         <span className="text-stone text-sm">/ night</span>
       </div>
 
-      {/* Date inputs */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider text-stone">
-            Check-in
-          </label>
-          <div className="relative">
-            <CalendarDays
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-light pointer-events-none"
-            />
-            <input
-              type="date"
-              value={checkIn}
-              min={today}
-              onChange={(e) => handleCheckInChange(e.target.value)}
+      {/* Selected dates summary */}
+      {checkIn || checkOut ? (
+        <div className="mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div
               className={cn(
-                "w-full pl-8 pr-2 py-2.5 text-sm border rounded-lg bg-cream focus:outline-none focus:ring-2 focus:ring-sand focus:border-transparent transition-all",
-                checkIn ? "text-charcoal border-sand" : "text-stone border-warm-border"
+                "border rounded-lg px-3 py-2.5",
+                checkIn ? "border-sand bg-cream" : "border-warm-border bg-cream"
               )}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider text-stone">
-            Check-out
-          </label>
-          <div className="relative">
-            <CalendarDays
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-light pointer-events-none"
-            />
-            <input
-              type="date"
-              value={checkOut}
-              min={checkIn || today}
-              onChange={(e) => handleCheckOutChange(e.target.value)}
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-light mb-0.5">
+                Check-in
+              </p>
+              <p className={cn("text-sm font-medium", checkIn ? "text-charcoal" : "text-stone-light")}>
+                {checkIn ? formatDisplay(checkIn) : "—"}
+              </p>
+            </div>
+            <div
               className={cn(
-                "w-full pl-8 pr-2 py-2.5 text-sm border rounded-lg bg-cream focus:outline-none focus:ring-2 focus:ring-sand focus:border-transparent transition-all",
-                checkOut ? "text-charcoal border-sand" : "text-stone border-warm-border"
+                "border rounded-lg px-3 py-2.5",
+                checkOut ? "border-sand bg-cream" : "border-warm-border bg-cream"
               )}
-            />
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-light mb-0.5">
+                Check-out
+              </p>
+              <p className={cn("text-sm font-medium", checkOut ? "text-charcoal" : "text-stone-light")}>
+                {checkOut ? formatDisplay(checkOut) : "—"}
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Error */}
-      {error && (
-        <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5 mb-3">
-          <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
-          <span>{error}</span>
+          {/* Clear dates */}
+          <button
+            type="button"
+            onClick={clearDates}
+            className="flex items-center gap-1 mt-2 text-xs text-stone hover:text-sand transition-colors"
+          >
+            <X size={11} />
+            Clear dates
+          </button>
+        </div>
+      ) : (
+        /* Prompt to use calendar */
+        <div className="flex items-start gap-2 bg-cream border border-warm-border rounded-lg px-3 py-3 mb-4 text-xs text-stone leading-relaxed">
+          <CalendarDays size={13} className="mt-0.5 shrink-0 text-sand" />
+          <span>Select your dates on the calendar below to see pricing.</span>
         </div>
       )}
 
       {/* Price breakdown */}
-      {nights > 0 && !hasBlockedDateInRange && (
+      {canBook && (
         <div className="bg-cream rounded-lg px-4 py-3 mb-4 space-y-2 text-sm">
           <div className="flex justify-between text-stone">
             <span>
@@ -169,23 +126,32 @@ export default function BookingWidget({
         </div>
       )}
 
+      {/* Incomplete selection hint */}
+      {checkIn && !checkOut && (
+        <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5 mb-4">
+          <AlertCircle size={13} className="mt-0.5 shrink-0" />
+          <span>Now select a check-out date on the calendar.</span>
+        </div>
+      )}
+
       {/* CTA */}
       <button
         onClick={handleBook}
-        disabled={hasBlockedDateInRange}
+        disabled={!canBook}
         className={cn(
           "w-full py-3.5 rounded-full text-sm font-semibold transition-all duration-200",
-          hasBlockedDateInRange
-            ? "bg-stone-light text-white cursor-not-allowed"
-            : "bg-sand hover:bg-sand-dark text-white hover:shadow-lg hover:shadow-sand/20 active:scale-[0.98]"
+          canBook
+            ? "bg-sand hover:bg-sand-dark text-white hover:shadow-lg hover:shadow-sand/20 active:scale-[0.98]"
+            : "bg-stone-light/30 text-stone-light cursor-not-allowed"
         )}
       >
-        {nights > 0 ? "Book Now" : "Check Availability"}
+        {canBook ? "Book Now" : "Select Dates to Book"}
       </button>
 
-      {nights > 0 && (
+      {canBook && (
         <p className="text-center text-xs text-stone mt-3">
-          {formatDisplay(checkIn)} → {formatDisplay(checkOut)} · {nights} night{nights > 1 ? "s" : ""}
+          {formatDisplay(checkIn)} → {formatDisplay(checkOut)} · {nights} night
+          {nights > 1 ? "s" : ""}
         </p>
       )}
 

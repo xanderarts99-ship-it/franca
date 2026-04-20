@@ -1,8 +1,10 @@
+import Image from "next/image";
 import { CalendarDays, MapPin, Tag } from "lucide-react";
 
 interface OrderSummaryProps {
   propertyName: string;
   location: string;
+  image?: string;
   checkIn: string;
   checkOut: string;
   nights: number;
@@ -23,6 +25,7 @@ function formatDate(iso: string) {
 export default function OrderSummary({
   propertyName,
   location,
+  image,
   checkIn,
   checkOut,
   nights,
@@ -31,17 +34,24 @@ export default function OrderSummary({
 }: OrderSummaryProps) {
   return (
     <div className="bg-surface border border-warm-border rounded-[var(--radius-card)] overflow-hidden sticky top-24">
-      {/* Property image placeholder */}
-      <div
-        className="h-40 w-full"
-        style={{
-          background:
-            "linear-gradient(160deg, #0F2945 0%, #1B3A6B 50%, #C8834A 100%)",
-        }}
-      >
-        <div className="h-full w-full bg-black/20 flex items-center justify-center">
-          <span className="font-serif text-white/30 text-4xl font-semibold">RV</span>
-        </div>
+      {/* Property image */}
+      <div className="relative h-40 w-full">
+        {image ? (
+          <Image
+            src={image}
+            alt={propertyName}
+            fill
+            className="object-cover"
+            sizes="340px"
+          />
+        ) : (
+          <div
+            className="h-full w-full flex items-center justify-center"
+            style={{ background: "linear-gradient(160deg, #0F2945 0%, #1B3A6B 50%, #C8834A 100%)" }}
+          >
+            <span className="font-serif text-white/30 text-4xl font-semibold">RV</span>
+          </div>
+        )}
       </div>
 
       <div className="p-5">

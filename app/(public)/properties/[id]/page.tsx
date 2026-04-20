@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Star, Home } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Home, Users, BedDouble, Bed, Bath } from "lucide-react";
 import PhotoGrid from "@/components/public/PhotoGrid";
 import BookingWidget from "@/components/public/BookingWidget";
-import AvailabilityCalendar from "@/components/public/AvailabilityCalendar";
+import PropertyCalendar, { PropertyDateProvider } from "@/components/public/PropertyCalendar";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
@@ -33,6 +33,8 @@ const AMENITY_ICONS: Record<string, string> = {
   "Hammock": "🌴", "Deck": "🪵", "Rooftop": "🏙️", "Ski Access": "⛷️",
   "Kayaks": "🛶", "Lake Access": "🏞️", "Snorkeling": "🤿",
   "Bicycle Hire": "🚲", "Outdoor Shower": "🚿", "Porch": "🏡",
+  "Work Desk": "💼", "Smart TV": "📺", "Washer & Dryer": "🧺",
+  "Free Wi-Fi": "📶", "Free Parking": "🚗",
 };
 
 export default async function PropertyDetailPage({ params }: PageProps) {
@@ -40,18 +42,22 @@ export default async function PropertyDetailPage({ params }: PageProps) {
 
   const property = await prisma.property.findUnique({
     where: { id },
-    include: {
-      blockedDates: {
-        select: { date: true },
-      },
+    select: {
+      id: true,
+      name: true,
+      location: true,
+      description: true,
+      nightlyRate: true,
+      guests: true,
+      bedrooms: true,
+      beds: true,
+      bathrooms: true,
+      amenities: true,
+      images: true,
     },
   });
 
   if (!property) notFound();
-
-  const blockedDates = property.blockedDates.map((b) =>
-    b.date.toISOString().slice(0, 10)
-  );
 
   return (
     <div className="min-h-screen bg-cream">
@@ -74,7 +80,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                 {property.name}
               </h1>
               <div className="flex items-center gap-1.5 mt-2">
-                <MapPin size={14} className="text-stone-light flex-shrink-0" />
+                <MapPin size={14} className="text-stone-light shrink-0" />
                 <span className="text-stone text-sm md:text-base">{property.location}</span>
               </div>
             </div>
@@ -84,6 +90,38 @@ export default async function PropertyDetailPage({ params }: PageProps) {
               <span className="text-stone-light">· New listing</span>
             </div>
           </div>
+
+          {/* ── Property stats row ────────────────────────────── */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-row sm:items-center gap-3 sm:gap-6 mt-4 pt-4 border-t border-warm-border text-sm text-stone">
+            <div className="flex items-center gap-2">
+              <Users size={15} className="text-stone-light shrink-0" />
+              <span>
+                <span className="font-semibold text-charcoal">{property.guests}</span>{" "}
+                {property.guests === 1 ? "guest" : "guests"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <BedDouble size={15} className="text-stone-light shrink-0" />
+              <span>
+                <span className="font-semibold text-charcoal">{property.bedrooms}</span>{" "}
+                {property.bedrooms === 1 ? "bedroom" : "bedrooms"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Bed size={15} className="text-stone-light shrink-0" />
+              <span>
+                <span className="font-semibold text-charcoal">{property.beds}</span>{" "}
+                {property.beds === 1 ? "bed" : "beds"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Bath size={15} className="text-stone-light shrink-0" />
+              <span>
+                <span className="font-semibold text-charcoal">{property.bathrooms}</span>{" "}
+                {property.bathrooms === 1 ? "bathroom" : "bathrooms"}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* ── Photo grid ───────────────────────────────────────── */}
@@ -91,66 +129,67 @@ export default async function PropertyDetailPage({ params }: PageProps) {
           <PhotoGrid images={property.images} propertyName={property.name} />
         </div>
 
-        {/* ── Two-column layout ────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12 lg:gap-16">
+        {/* ── Two-column layout (shared date-selection context) ── */}
+        <PropertyDateProvider>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12 lg:gap-16">
 
-          {/* Left column */}
-          <div className="min-w-0">
+            {/* Left column */}
+            <div className="min-w-0">
 
-            {/* About */}
-            <section className="pb-8 border-b border-warm-border">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="flex-shrink-0 w-9 h-9 bg-sand-light rounded-full flex items-center justify-center">
-                  <Home size={16} className="text-sand" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-charcoal">Entire property</p>
-                  <p className="text-xs text-stone">Privately owned by Franca</p>
-                </div>
-              </div>
-              <h2 className="font-serif text-2xl font-semibold text-charcoal mb-3">
-                About this property
-              </h2>
-              <p className="text-stone leading-relaxed text-sm md:text-base">
-                {property.description}
-              </p>
-            </section>
-
-            {/* Amenities */}
-            <section className="py-8 border-b border-warm-border">
-              <h2 className="font-serif text-2xl font-semibold text-charcoal mb-5">
-                What this place offers
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {property.amenities.map((amenity) => (
-                  <div
-                    key={amenity}
-                    className="flex items-center gap-3 text-sm text-charcoal"
-                  >
-                    <span className="text-base w-6 text-center flex-shrink-0">
-                      {AMENITY_ICONS[amenity] ?? "✓"}
-                    </span>
-                    <span>{amenity}</span>
+              {/* About */}
+              <section className="pb-8 border-b border-warm-border">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="shrink-0 w-9 h-9 bg-sand-light rounded-full flex items-center justify-center">
+                    <Home size={16} className="text-sand" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-charcoal">Entire property</p>
+                    <p className="text-xs text-stone">Privately owned by Rammie&apos;s Vacation</p>
                   </div>
-                ))}
-              </div>
-            </section>
+                </div>
+                <h2 className="font-serif text-2xl font-semibold text-charcoal mb-3">
+                  About this property
+                </h2>
+                <p className="text-stone leading-relaxed text-sm md:text-base">
+                  {property.description}
+                </p>
+              </section>
 
-            {/* Availability calendar */}
-            <section className="py-8">
-              <AvailabilityCalendar blockedDates={blockedDates} />
-            </section>
-          </div>
+              {/* Amenities */}
+              <section className="py-8 border-b border-warm-border">
+                <h2 className="font-serif text-2xl font-semibold text-charcoal mb-5">
+                  What this place offers
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {property.amenities.map((amenity) => (
+                    <div
+                      key={amenity}
+                      className="flex items-center gap-3 text-sm text-charcoal"
+                    >
+                      <span className="text-base w-6 text-center shrink-0">
+                        {AMENITY_ICONS[amenity] ?? "✓"}
+                      </span>
+                      <span>{amenity}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
-          {/* Right column — sticky booking widget */}
-          <div className="lg:block">
-            <BookingWidget
-              propertyId={property.id}
-              nightlyRate={Number(property.nightlyRate)}
-              blockedDates={blockedDates}
-            />
+              {/* Interactive availability calendar */}
+              <section className="py-8">
+                <PropertyCalendar propertyId={property.id} />
+              </section>
+            </div>
+
+            {/* Right column — sticky booking widget */}
+            <div className="lg:block">
+              <BookingWidget
+                propertyId={property.id}
+                nightlyRate={Number(property.nightlyRate)}
+              />
+            </div>
           </div>
-        </div>
+        </PropertyDateProvider>
 
       </div>
     </div>

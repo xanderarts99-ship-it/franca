@@ -26,7 +26,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
 
   const property = await prisma.property.findUnique({
     where: { id: propertyId },
-    select: { name: true, location: true, nightlyRate: true },
+    select: { name: true, location: true, nightlyRate: true, images: true },
   });
   if (!property) redirect("/");
 
@@ -81,6 +81,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
           <OrderSummary
             propertyName={property.name}
             location={property.location}
+            image={property.images[0]}
             checkIn={checkIn}
             checkOut={checkOut}
             nights={nights}
