@@ -35,16 +35,16 @@ export default function BookingWidget({
     if (!checkIn || !checkOut) return 0;
     const diff =
       (parseLocal(checkOut).getTime() - parseLocal(checkIn).getTime()) /
-      (1000 * 60 * 60 * 24);
+      86400000;
     return diff > 0 ? Math.round(diff) : 0;
   }, [checkIn, checkOut]);
 
-  const total = nights * nightlyRate;
+  const total = useMemo(() => nights * nightlyRate, [nights, nightlyRate]);
 
   function handleBook() {
     if (!checkIn || !checkOut || nights <= 0) return;
     router.push(
-      `/checkout?propertyId=${propertyId}&checkIn=${checkIn}&checkOut=${checkOut}`
+      `/checkout?propertyId=${propertyId}&checkIn=${checkIn}&checkOut=${checkOut}&totalNights=${nights}&totalAmount=${total}`
     );
   }
 

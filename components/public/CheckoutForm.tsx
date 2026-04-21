@@ -109,6 +109,7 @@ export default function CheckoutForm({
           propertyId,
           checkIn,
           checkOut,
+          totalAmount: total,
           guestName: data.guestName,
           guestEmail: data.guestEmail,
           guestPhone: data.guestPhone,
@@ -117,8 +118,16 @@ export default function CheckoutForm({
 
       const json = await res.json();
 
+      if (res.status === 409) {
+        setServerError(
+          "Sorry, these dates were just booked by someone else. Please go back and select different dates."
+        );
+        setSubmitting(false);
+        return;
+      }
+
       if (!res.ok) {
-        setServerError(json.error ?? "Something went wrong. Please try again.");
+        setServerError("Payment failed. Please try again.");
         setSubmitting(false);
         return;
       }
@@ -131,10 +140,9 @@ export default function CheckoutForm({
          if (error) { setServerError(error.message ?? "Payment failed."); setSubmitting(false); return; }
       */
 
-      // Temporary: navigate to confirmation
       router.push(`/booking-confirmation?bookingId=${json.bookingId}`);
     } catch {
-      setServerError("Network error. Please check your connection and try again.");
+      setServerError("Payment failed. Please try again.");
       setSubmitting(false);
     }
   }
