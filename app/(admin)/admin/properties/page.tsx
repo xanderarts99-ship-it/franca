@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, Pencil, CalendarDays, DollarSign } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
@@ -27,6 +28,7 @@ export default async function AdminPropertiesPage() {
       location: true,
       nightlyRate: true,
       amenities: true,
+      images: true,
       _count: { select: { bookings: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -50,14 +52,26 @@ export default async function AdminPropertiesPage() {
             className="bg-white border border-warm-border rounded-[var(--radius-card)] overflow-hidden group"
           >
             {/* Thumbnail */}
-            <div
-              className="h-36 w-full relative"
-              style={{ background: GRADIENTS[idx % GRADIENTS.length] }}
-            >
-              <div className="absolute inset-0 bg-black/10" />
-              <span className="absolute inset-0 flex items-center justify-center font-serif text-white/20 text-4xl font-semibold select-none">
-                RV
-              </span>
+            <div className="h-36 w-full relative overflow-hidden">
+              {property.images[0] ? (
+                <Image
+                  src={property.images[0]}
+                  alt={property.name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                />
+              ) : (
+                <div
+                  className="h-full w-full relative"
+                  style={{ background: GRADIENTS[idx % GRADIENTS.length] }}
+                >
+                  <div className="absolute inset-0 bg-black/10" />
+                  <span className="absolute inset-0 flex items-center justify-center font-serif text-white/20 text-4xl font-semibold select-none">
+                    RV
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Content */}

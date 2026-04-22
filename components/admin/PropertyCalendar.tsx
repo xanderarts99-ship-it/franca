@@ -24,11 +24,11 @@ const MONTHS = [
   "July","August","September","October","November","December",
 ];
 
-const REASON_STYLE: Record<Reason, { cell: string; dot: string; label: string }> = {
-  BOOKING:  { cell: "bg-blue-100 text-blue-700",        dot: "bg-blue-400",   label: "Reservation" },
-  PENDING:  { cell: "bg-stone-100 text-stone-500",      dot: "bg-stone-400",  label: "Pending payment" },
-  MANUAL:   { cell: "bg-red-100 text-red-600",          dot: "bg-red-400",    label: "Manually blocked" },
-  EXTERNAL: { cell: "bg-orange-100 text-orange-600",    dot: "bg-orange-400", label: "External (iCal)" },
+const REASON_STYLE: Record<Reason, { cell: string; label: string }> = {
+  BOOKING:  { cell: "bg-blue-100 text-blue-700",     label: "Reservation" },
+  PENDING:  { cell: "bg-stone-100 text-stone-500",   label: "Pending payment" },
+  MANUAL:   { cell: "bg-red-100 text-red-600",       label: "Manually blocked" },
+  EXTERNAL: { cell: "bg-orange-100 text-orange-600", label: "External (iCal)" },
 };
 
 function toKey(y: number, m: number, d: number) {
@@ -43,7 +43,10 @@ function todayKey() {
 export default function PropertyCalendar({ propertyId, blockedDates }: Props) {
   const now = new Date();
   const [offset, setOffset] = useState(0);
-  const [manualDates, setManualDates] = useState<Set<string>>(new Set());
+  // Dates blocked client-side this session (not yet in DB on initial load)
+  const [clientBlocked, setClientBlocked] = useState<Set<string>>(new Set());
+  // DB MANUAL dates that were unblocked this session (optimistic removal)
+  const [locallyUnblocked, setLocallyUnblocked] = useState<Set<string>>(new Set());
   const [tooltip, setTooltip] = useState<{ key: string; info: BlockedDate } | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
@@ -63,29 +66,58 @@ export default function PropertyCalendar({ propertyId, blockedDates }: Props) {
   while (cells.length % 7 !== 0) cells.push(null);
 
   async function toggleManual(key: string) {
+    const dbEntry = locallyUnblocked.has(key) ? undefined : blockedMap.get(key);
+    const isDbManual = dbEntry?.reason === "MANUAL";
+    const isClientManual = clientBlocked.has(key);
+    const isCurrentlyBlocked = isDbManual || isClientManual;
+
     setSaving(key);
-    // Optimistic update
-    setManualDates((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-    try {
-      await fetch(`/api/admin/properties/${propertyId}/blocked-dates`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: key }),
-      });
-    } catch {
-      // revert on failure
-      setManualDates((prev) => {
-        const next = new Set(prev);
-        next.has(key) ? next.delete(key) : next.add(key);
-        return next;
-      });
-    } finally {
-      setSaving(null);
+
+    if (isCurrentlyBlocked) {
+      // Optimistic unblock
+      if (isDbManual) {
+        setLocallyUnblocked((prev) => new Set(prev).add(key));
+      } else {
+        setClientBlocked((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      }
+      try {
+        const res = await fetch(
+          `/api/admin/properties/${propertyId}/blocked-dates`,
+          {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date: key }),
+          }
+        );
+        if (!res.ok) throw new Error("Request failed");
+      } catch {
+        // Revert
+        if (isDbManual) {
+          setLocallyUnblocked((prev) => { const next = new Set(prev); next.delete(key); return next; });
+        } else {
+          setClientBlocked((prev) => new Set(prev).add(key));
+        }
+      }
+    } else {
+      // Optimistic block
+      setClientBlocked((prev) => new Set(prev).add(key));
+      try {
+        const res = await fetch(
+          `/api/admin/properties/${propertyId}/blocked-dates`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date: key }),
+          }
+        );
+        if (!res.ok) throw new Error("Request failed");
+      } catch {
+        // Revert
+        setClientBlocked((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      }
     }
+
+    setSaving(null);
   }
 
   return (
@@ -129,31 +161,48 @@ export default function PropertyCalendar({ propertyId, blockedDates }: Props) {
         {cells.map((day, idx) => {
           if (!day) return <div key={`e-${idx}`} />;
 
-          const key       = toKey(year, month, day);
-          const isPast    = key < today;
-          const isToday   = key === today;
-          const blocked   = blockedMap.get(key);
-          const isManual  = manualDates.has(key);
-          const isSaving  = saving === key;
+          const key      = toKey(year, month, day);
+          const isPast   = key < today;
+          const isToday  = key === today;
+          const isSaving = saving === key;
 
-          const effectiveReason: Reason | null = blocked?.reason ?? (isManual ? "MANUAL" : null);
+          // Effective DB entry (respects local unblocks)
+          const dbEntry = locallyUnblocked.has(key) ? undefined : blockedMap.get(key);
+          const isClientManual = clientBlocked.has(key);
+
+          const effectiveReason: Reason | null =
+            dbEntry?.reason ?? (isClientManual ? "MANUAL" : null);
+
           const style = effectiveReason ? REASON_STYLE[effectiveReason] : null;
+
+          // Only MANUAL dates are clickable to toggle; BOOKING/EXTERNAL/PENDING are display-only
+          const canToggle =
+            !isPast &&
+            !isSaving &&
+            (effectiveReason === null || effectiveReason === "MANUAL");
+
+          // Show tooltip for any blocked date (from DB, not client-added)
+          const tooltipData = dbEntry;
 
           return (
             <div key={key} className="relative flex justify-center py-0.5">
               <button
-                disabled={isPast || !!blocked || isSaving}
-                onClick={() => toggleManual(key)}
-                onMouseEnter={() => blocked && setTooltip({ key, info: blocked })}
+                disabled={!canToggle}
+                onClick={() => canToggle && toggleManual(key)}
+                onMouseEnter={() => tooltipData && setTooltip({ key, info: tooltipData })}
                 onMouseLeave={() => setTooltip(null)}
                 className={cn(
                   "w-8 h-8 rounded-full text-xs flex items-center justify-center transition-all relative",
                   isPast && "text-stone-light/40 cursor-default",
                   !isPast && !effectiveReason && "text-charcoal hover:bg-[#FAFAF7] cursor-pointer",
+                  effectiveReason === "BOOKING" || effectiveReason === "PENDING" || effectiveReason === "EXTERNAL"
+                    ? "cursor-default"
+                    : effectiveReason === "MANUAL" && canToggle
+                    ? "cursor-pointer"
+                    : "",
                   style && style.cell,
                   isToday && "ring-2 ring-charcoal/20 font-semibold",
                   isSaving && "opacity-50 cursor-wait",
-                  !isPast && !blocked && isManual && "ring-2 ring-red-300",
                 )}
                 aria-label={key}
               >
@@ -161,14 +210,14 @@ export default function PropertyCalendar({ propertyId, blockedDates }: Props) {
               </button>
 
               {/* Tooltip */}
-              {tooltip?.key === key && (
+              {tooltip?.key === key && tooltipData && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 pointer-events-none">
                   <div className="bg-charcoal text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-lg">
-                    {blocked?.label && <p className="font-semibold">{blocked.label}</p>}
-                    {blocked?.bookingRef && (
-                      <p className="text-white/60 font-mono">{blocked.bookingRef}</p>
+                    {tooltipData.label && <p className="font-semibold">{tooltipData.label}</p>}
+                    {tooltipData.bookingRef && (
+                      <p className="text-white/60 font-mono">{tooltipData.bookingRef}</p>
                     )}
-                    <p className="text-white/50">{REASON_STYLE[blocked!.reason].label}</p>
+                    <p className="text-white/50">{REASON_STYLE[tooltipData.reason].label}</p>
                   </div>
                   <div className="w-2 h-2 bg-charcoal rotate-45 mx-auto -mt-1" />
                 </div>
@@ -178,24 +227,23 @@ export default function PropertyCalendar({ propertyId, blockedDates }: Props) {
         })}
       </div>
 
-      {/* Manual block tip */}
+      {/* Toggle tip */}
       <p className="text-[10px] text-stone-light mt-3 flex items-center gap-1.5">
         <Lock size={10} />
         Click an available date to manually block it.
         <Unlock size={10} className="ml-1" />
-        Click a manually blocked date to unblock.
+        Click a red date to unblock it.
       </p>
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 pt-4 border-t border-warm-border">
-        {(Object.entries(REASON_STYLE) as [Reason, typeof REASON_STYLE[Reason]][]).map(
-          ([, { dot, label }]) => (
-            <div key={label} className="flex items-center gap-2 text-xs text-stone">
-              <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", dot)} />
-              {label}
-            </div>
-          )
-        )}
+        <span className="text-xs text-stone">🔵 Confirmed booking</span>
+        <span className="text-xs text-stone">🔴 Manually blocked</span>
+        <span className="text-xs text-stone">🟠 External booking</span>
+        <span className="text-xs text-stone flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-stone-400 inline-block flex-shrink-0" />
+          Pending payment
+        </span>
       </div>
     </div>
   );

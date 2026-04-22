@@ -1,9 +1,11 @@
+import { Toaster } from "sonner";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminMobileHeader from "@/components/admin/AdminMobileHeader";
 
 export default function AdminShellLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#F5F4F1] flex">
+      <Toaster richColors position="top-right" />
 
       {/* Sidebar — desktop */}
       <AdminSidebar />

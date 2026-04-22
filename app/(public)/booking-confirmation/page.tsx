@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   CheckCircle2,
   CalendarDays,
@@ -59,7 +60,7 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: {
-      property: { select: { name: true, location: true, nightlyRate: true } },
+      property: { select: { name: true, location: true, nightlyRate: true, images: true } },
     },
   });
 
@@ -89,17 +90,34 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
         {/* ── Booking reference card ───────────────────────────── */}
         <div className="bg-surface border border-warm-border rounded-[var(--radius-card)] overflow-hidden mb-4">
 
-          {/* Property gradient banner */}
-          <div
-            className="h-32 w-full relative"
-            style={{
-              background:
-                "linear-gradient(160deg, #0F2945 0%, #1B3A6B 50%, #C8834A 100%)",
-            }}
-          >
-            <div className="h-full w-full bg-black/20 flex flex-col items-center justify-center gap-1">
-              <span className="font-serif text-white/30 text-3xl font-semibold">RV</span>
-            </div>
+          {/* Property banner */}
+          <div className="h-32 w-full relative overflow-hidden">
+            {booking.property.images[0] ? (
+              <Image
+                src={booking.property.images[0]}
+                alt={booking.property.name}
+                fill
+                className="object-cover"
+                sizes="672px"
+              />
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{
+                  background:
+                    "linear-gradient(160deg, #0F2945 0%, #1B3A6B 50%, #C8834A 100%)",
+                }}
+              >
+                <div className="h-full w-full bg-black/20 flex flex-col items-center justify-center gap-1">
+                  <span className="font-serif text-white/30 text-3xl font-semibold">RV</span>
+                </div>
+              </div>
+            )}
+
+            {/* Darken overlay for readability */}
+            {booking.property.images[0] && (
+              <div className="absolute inset-0 bg-black/30" />
+            )}
 
             {/* Reference badge overlay */}
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
