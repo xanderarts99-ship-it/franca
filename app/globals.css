@@ -46,3 +46,32 @@ body {
   background-color: var(--color-sand-light);
   color: var(--color-charcoal);
 }
+
+/* ── Entrance animations ─────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scrollLine {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(400%); opacity: 0; }
+}
+
+.hero-fade-1 { animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
+.hero-fade-2 { animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
+.hero-fade-3 { animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both; }
+.hero-fade-4 { animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both; }
+.hero-fade-5 { animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.7s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-fade-1,
+  .hero-fade-2,
+  .hero-fade-3,
+  .hero-fade-4,
+  .hero-fade-5 {
+    animation: none;
+  }
+}

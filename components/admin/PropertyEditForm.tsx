@@ -5,7 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Tag, X, Upload, Loader2, AlertCircle, ImagePlus, Trash2 } from "lucide-react";
+import {
+  Tag, X, Loader2, AlertCircle, ImagePlus, Trash2,
+  FileText, Users, Sparkles, Camera, Save, GripVertical, Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
@@ -45,9 +48,15 @@ interface Property {
 }
 
 const INPUT_BASE =
-  "w-full px-4 py-3 text-sm rounded-xl border border-warm-border bg-[#FAFAF7] text-charcoal placeholder:text-stone-light/50 focus:outline-none focus:ring-2 focus:ring-sand/40 focus:border-transparent transition-all";
+  "w-full px-4 py-3 text-sm rounded-xl border border-warm-border bg-cream text-charcoal placeholder:text-stone-light/50 focus:outline-none focus:ring-2 focus:ring-sand/40 focus:border-transparent transition-all";
 
-/* ── Reusable field wrapper ─────────────────────────────────────────── */
+const COMMON_AMENITIES = [
+  "WiFi", "Pool", "Hot Tub", "Parking", "Kitchen", "Air Conditioning",
+  "Washer/Dryer", "BBQ Grill", "Pet-Friendly", "Gym", "Netflix",
+  "Coffee Maker", "Workspace", "Fire Pit", "Balcony", "Ocean View",
+];
+
+/* ── Field wrapper ──────────────────────────────────────────────────── */
 function Field({
   label, error, children,
 }: { label: string; error?: string; children: React.ReactNode }) {
@@ -65,6 +74,30 @@ function Field({
     </div>
   );
 }
+
+/* ── Section header ─────────────────────────────────────────────────── */
+function SectionHeader({
+  icon, title, subtitle, aside,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  aside?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 mb-6 pb-5 border-b border-warm-border">
+      <div className="w-9 h-9 rounded-lg bg-sand-light flex items-center justify-center text-sand shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h2 className="font-serif text-lg font-semibold text-charcoal leading-tight">{title}</h2>
+        {subtitle && <p className="text-xs text-stone mt-0.5">{subtitle}</p>}
+      </div>
+      {aside}
+    </div>
+  );
+}
+
 
 /* ── Sortable image cell ─────────────────────────────────────────────── */
 function SortableImageItem({
@@ -84,34 +117,43 @@ function SortableImageItem({
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.4 : 1,
       }}
-      className="relative aspect-square rounded-xl overflow-hidden group border border-warm-border cursor-grab active:cursor-grabbing"
+      className={cn(
+        "relative aspect-square rounded-xl overflow-hidden group border border-warm-border cursor-grab active:cursor-grabbing",
+        isDragging && "z-50 shadow-2xl ring-2 ring-sand/30"
+      )}
     >
-      {/* Drag target covers the image */}
+      {/* Drag target covers image */}
       <div className="w-full h-full" {...attributes} {...listeners}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" />
       </div>
 
+      {/* Cover badge */}
       {idx === 0 && (
-        <span className="absolute top-1.5 left-1.5 bg-sand text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full pointer-events-none z-10">
+        <span className="absolute top-2 left-2 bg-sand text-white text-[9px] font-bold px-2 py-0.5 rounded-full pointer-events-none z-10 uppercase tracking-wide">
           Cover
         </span>
       )}
 
+      {/* Drag grip — visible on hover */}
+      <div className="absolute bottom-2 left-2 w-5 h-5 rounded-md bg-black/40 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <GripVertical size={10} className="text-white" />
+      </div>
+
       {isDeleting ? (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <Loader2 size={16} className="animate-spin text-white" />
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+          <Loader2 size={18} className="animate-spin text-white" />
         </div>
       ) : (
         <button
           type="button"
           onClick={() => onDelete(url)}
-          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 z-10"
+          className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/55 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:scale-110 z-10 cursor-pointer"
           aria-label="Remove image"
         >
-          <Trash2 size={10} />
+          <Trash2 size={11} />
         </button>
       )}
     </div>
@@ -125,12 +167,10 @@ export default function PropertyEditForm({ property }: { property: Property }) {
   const [amenities, setAmenities] = useState<string[]>(property.amenities);
   const [tagInput, setTagInput]   = useState("");
 
-  // Only real Cloudinary URLs live here — no blob:// URLs ever
-  const [images, setImages] = useState<string[]>(property.images);
-  // Files currently uploading: show spinner slot with local preview
+  const [images, setImages]               = useState<string[]>(property.images);
   const [uploadingFiles, setUploadingFiles] = useState<{ id: string; preview: string }[]>([]);
-  // Which real URLs are mid-delete
-  const [deletingUrls, setDeletingUrls] = useState<Set<string>>(new Set());
+  const [deletingUrls, setDeletingUrls]   = useState<Set<string>>(new Set());
+  const [dragOver, setDragOver]           = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,11 +205,10 @@ export default function PropertyEditForm({ property }: { property: Property }) {
     }
   }
 
-  /* ── Photo upload ─────────────────────────────────────────────────── */
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
+  const availableSuggestions = COMMON_AMENITIES.filter((s) => !amenities.includes(s));
 
+  /* ── Upload logic ─────────────────────────────────────────────────── */
+  function uploadFiles(files: File[]) {
     for (const file of files) {
       if (images.length + uploadingFiles.length >= 40) {
         toast.error("Maximum 40 images reached");
@@ -202,6 +241,21 @@ export default function PropertyEditForm({ property }: { property: Property }) {
           setUploadingFiles((prev) => prev.filter((f) => f.id !== tempId));
         });
     }
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    uploadFiles(files);
+  }
+
+  function onDropFiles(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(f.type)
+    );
+    uploadFiles(files);
   }
 
   /* ── Photo delete ─────────────────────────────────────────────────── */
@@ -281,115 +335,149 @@ export default function PropertyEditForm({ property }: { property: Property }) {
   }
 
   const atImageLimit = images.length + uploadingFiles.length >= 40;
+  const totalImages  = images.length + uploadingFiles.length;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
 
-      {/* ── Core details ──────────────────────────────────────── */}
-      <div className="bg-white border border-warm-border rounded-[var(--radius-card)] p-5 space-y-4">
-        <h2 className="font-serif text-base font-semibold text-charcoal">Details</h2>
+      {/* ── Basic Information ──────────────────────────────────── */}
+      <div className="bg-white border border-warm-border rounded-card p-6">
+        <SectionHeader
+          icon={<FileText size={15} />}
+          title="Basic Information"
+          subtitle="Name, location, and pricing"
+        />
 
-        <Field label="Property name" error={errors.name?.message}>
-          <input
-            type="text"
-            placeholder="Oceanfront Villa"
-            {...register("name")}
-            className={cn(INPUT_BASE, errors.name && "border-red-300 focus:ring-red-300")}
-          />
-        </Field>
-
-        <Field label="Location" error={errors.location?.message}>
-          <input
-            type="text"
-            placeholder="Miami Beach, FL"
-            {...register("location")}
-            className={cn(INPUT_BASE, errors.location && "border-red-300 focus:ring-red-300")}
-          />
-        </Field>
-
-        <Field label="Description" error={errors.description?.message}>
-          <textarea
-            rows={5}
-            placeholder="Describe the property…"
-            {...register("description")}
-            className={cn(
-              INPUT_BASE,
-              "resize-none leading-relaxed",
-              errors.description && "border-red-300 focus:ring-red-300"
-            )}
-          />
-        </Field>
-
-        <Field label="Nightly rate (USD)" error={errors.nightlyRate?.message}>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-light text-sm">$</span>
+        <div className="space-y-4">
+          <Field label="Property name" error={errors.name?.message}>
             <input
-              type="number"
-              min={1}
-              step={0.01}
-              placeholder="420"
-              {...register("nightlyRate")}
-              className={cn(INPUT_BASE, "pl-7", errors.nightlyRate && "border-red-300 focus:ring-red-300")}
+              type="text"
+              placeholder="Oceanfront Villa"
+              {...register("name")}
+              className={cn(INPUT_BASE, errors.name && "border-red-300 focus:ring-red-300")}
             />
+          </Field>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Location" error={errors.location?.message}>
+              <input
+                type="text"
+                placeholder="Miami Beach, FL"
+                {...register("location")}
+                className={cn(INPUT_BASE, errors.location && "border-red-300 focus:ring-red-300")}
+              />
+            </Field>
+
+            <Field label="Nightly rate (USD)" error={errors.nightlyRate?.message}>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-light text-sm pointer-events-none">$</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={0.01}
+                  placeholder="420"
+                  {...register("nightlyRate")}
+                  className={cn(INPUT_BASE, "pl-7", errors.nightlyRate && "border-red-300 focus:ring-red-300")}
+                />
+              </div>
+            </Field>
           </div>
-        </Field>
+
+          <Field label="Description" error={errors.description?.message}>
+            <textarea
+              rows={6}
+              placeholder="Describe the property…"
+              {...register("description")}
+              className={cn(
+                INPUT_BASE,
+                "resize-none leading-relaxed",
+                errors.description && "border-red-300 focus:ring-red-300"
+              )}
+            />
+          </Field>
+        </div>
       </div>
 
-      {/* ── Capacity ──────────────────────────────────────────── */}
-      <div className="bg-white border border-warm-border rounded-[var(--radius-card)] p-5">
-        <h2 className="font-serif text-base font-semibold text-charcoal mb-4">Capacity</h2>
-        <div className="grid grid-cols-2 gap-4">
+      {/* ── Capacity ───────────────────────────────────────────── */}
+      <div className="bg-white border border-warm-border rounded-card p-6">
+        <SectionHeader
+          icon={<Users size={15} />}
+          title="Capacity"
+          subtitle="Guests and sleeping arrangements"
+        />
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Field label="Guests" error={errors.guests?.message}>
             <input
               type="number" min={1} max={20} step={1}
               {...register("guests")}
-              className={cn(INPUT_BASE, errors.guests && "border-red-300 focus:ring-red-300")}
+              className={cn(
+                INPUT_BASE,
+                "text-center font-serif text-xl font-semibold",
+                errors.guests && "border-red-300 focus:ring-red-300"
+              )}
             />
           </Field>
           <Field label="Bedrooms" error={errors.bedrooms?.message}>
             <input
               type="number" min={0} max={20} step={1}
               {...register("bedrooms")}
-              className={cn(INPUT_BASE, errors.bedrooms && "border-red-300 focus:ring-red-300")}
+              className={cn(
+                INPUT_BASE,
+                "text-center font-serif text-xl font-semibold",
+                errors.bedrooms && "border-red-300 focus:ring-red-300"
+              )}
             />
           </Field>
           <Field label="Beds" error={errors.beds?.message}>
             <input
               type="number" min={1} max={30} step={1}
               {...register("beds")}
-              className={cn(INPUT_BASE, errors.beds && "border-red-300 focus:ring-red-300")}
+              className={cn(
+                INPUT_BASE,
+                "text-center font-serif text-xl font-semibold",
+                errors.beds && "border-red-300 focus:ring-red-300"
+              )}
             />
           </Field>
           <Field label="Bathrooms" error={errors.bathrooms?.message}>
             <input
               type="number" min={0} max={20} step={1}
               {...register("bathrooms")}
-              className={cn(INPUT_BASE, errors.bathrooms && "border-red-300 focus:ring-red-300")}
+              className={cn(
+                INPUT_BASE,
+                "text-center font-serif text-xl font-semibold",
+                errors.bathrooms && "border-red-300 focus:ring-red-300"
+              )}
             />
           </Field>
         </div>
       </div>
 
-      {/* ── Amenities ─────────────────────────────────────────── */}
-      <div className="bg-white border border-warm-border rounded-[var(--radius-card)] p-5">
-        <h2 className="font-serif text-base font-semibold text-charcoal mb-1">Amenities</h2>
-        <p className="text-xs text-stone mb-3">Press Enter or comma to add a tag.</p>
+      {/* ── Amenities ──────────────────────────────────────────── */}
+      <div className="bg-white border border-warm-border rounded-card p-6">
+        <SectionHeader
+          icon={<Sparkles size={15} />}
+          title="Amenities"
+          subtitle="Press Enter or comma to add a tag"
+        />
 
+        {/* Tag input */}
         <div className={cn(
-          "flex flex-wrap gap-2 p-3 rounded-xl border border-warm-border bg-[#FAFAF7] min-h-[52px]",
+          "flex flex-wrap gap-2 p-3 rounded-xl border border-warm-border bg-cream min-h-13",
           "focus-within:ring-2 focus-within:ring-sand/40 focus-within:border-transparent transition-all",
         )}>
           {amenities.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-sand/10 border border-sand/20 rounded-full text-xs font-medium text-sand"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-sand/10 border border-sand/20 rounded-full text-xs font-medium text-sand"
             >
-              <Tag size={9} />
+              <Tag size={9} className="shrink-0" />
               {tag}
               <button
                 type="button"
                 onClick={() => setAmenities((p) => p.filter((a) => a !== tag))}
-                className="ml-0.5 text-sand/60 hover:text-sand transition-colors"
+                className="ml-0.5 text-sand/50 hover:text-sand transition-colors cursor-pointer"
                 aria-label={`Remove ${tag}`}
               >
                 <X size={10} />
@@ -402,71 +490,140 @@ export default function PropertyEditForm({ property }: { property: Property }) {
             onKeyDown={onTagKeyDown}
             onBlur={addTag}
             placeholder={amenities.length === 0 ? "WiFi, Pool, Hot Tub…" : ""}
-            className="flex-1 min-w-[120px] bg-transparent text-sm text-charcoal placeholder:text-stone-light/40 focus:outline-none"
+            className="flex-1 min-w-30 bg-transparent text-sm text-charcoal placeholder:text-stone-light/40 focus:outline-none"
           />
         </div>
+
+        {/* Quick-add suggestions */}
+        {availableSuggestions.length > 0 && (
+          <div className="mt-3.5">
+            <p className="text-[10px] uppercase tracking-wider text-stone-light font-medium mb-2">
+              Quick add
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableSuggestions.slice(0, 12).map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => {
+                    if (!amenities.includes(suggestion)) {
+                      setAmenities((p) => [...p, suggestion]);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium text-stone border border-warm-border bg-cream hover:border-sand/40 hover:text-sand hover:bg-sand/5 transition-all cursor-pointer"
+                >
+                  <Plus size={9} />
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ── Photos ────────────────────────────────────────────── */}
-      <div className="bg-white border border-warm-border rounded-[var(--radius-card)] p-5">
-        <h2 className="font-serif text-base font-semibold text-charcoal mb-1">Photos</h2>
-        <p className="text-xs text-stone mb-3">
-          First image is the cover. Drag to reorder.
-        </p>
+      {/* ── Photos ─────────────────────────────────────────────── */}
+      <div className="bg-white border border-warm-border rounded-card p-6">
+        <SectionHeader
+          icon={<Camera size={15} />}
+          title="Photos"
+          subtitle="First image is the cover — drag to reorder"
+          aside={
+            <span className={cn(
+              "text-xs font-semibold px-2.5 py-1 rounded-full shrink-0",
+              atImageLimit
+                ? "bg-red-50 text-red-500"
+                : "bg-sand-light text-sand"
+            )}>
+              {totalImages} / 40
+            </span>
+          }
+        />
 
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={images} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-
-              {images.map((url, idx) => (
-                <SortableImageItem
-                  key={url}
-                  url={url}
-                  idx={idx}
-                  onDelete={removeImage}
-                  isDeleting={deletingUrls.has(url)}
-                />
-              ))}
-
-              {/* In-progress upload slots */}
-              {uploadingFiles.map(({ id, preview }) => (
-                <div
-                  key={id}
-                  className="relative aspect-square rounded-xl overflow-hidden border border-warm-border"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={preview} alt="" className="w-full h-full object-cover opacity-40" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <Loader2 size={20} className="animate-spin text-white" />
-                  </div>
-                </div>
-              ))}
-
-              {/* Upload button */}
-              {!atImageLimit && (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="aspect-square rounded-xl border-2 border-dashed border-warm-border hover:border-sand/50 bg-[#FAFAF7] hover:bg-sand/5 flex flex-col items-center justify-center gap-1.5 transition-all group"
-                >
-                  <ImagePlus size={18} className="text-stone-light group-hover:text-sand transition-colors" />
-                  <span className="text-[10px] text-stone-light group-hover:text-sand transition-colors font-medium">
-                    Add photo
-                  </span>
-                </button>
-              )}
-
-              {/* Limit reached notice in grid */}
-              {atImageLimit && (
-                <div className="aspect-square rounded-xl border border-warm-border bg-[#FAFAF7] flex items-center justify-center p-3">
-                  <p className="text-[10px] text-stone text-center leading-relaxed">
-                    Maximum 40 images reached
-                  </p>
-                </div>
-              )}
+        {/* Drop zone — always visible unless at limit */}
+        {!atImageLimit && (
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDropFiles}
+            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              "mb-5 rounded-xl border-2 border-dashed p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer group",
+              dragOver
+                ? "border-sand bg-sand/5 scale-[1.005]"
+                : "border-warm-border bg-cream hover:border-sand/50 hover:bg-sand/5"
+            )}
+          >
+            <div className={cn(
+              "w-11 h-11 rounded-xl flex items-center justify-center transition-all",
+              dragOver
+                ? "bg-sand text-white"
+                : "bg-sand-light text-sand group-hover:bg-sand group-hover:text-white"
+            )}>
+              <ImagePlus size={19} />
             </div>
-          </SortableContext>
-        </DndContext>
+            <div className="text-center">
+              <p className={cn(
+                "text-sm font-medium transition-colors",
+                dragOver ? "text-sand" : "text-stone group-hover:text-charcoal"
+              )}>
+                {dragOver ? "Drop to upload" : "Drop photos here or click to browse"}
+              </p>
+              <p className="text-[11px] text-stone-light mt-1">
+                JPEG, PNG, or WebP — max 10 MB each
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Photo grid */}
+        {(images.length > 0 || uploadingFiles.length > 0) && (
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={images} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {images.map((url, idx) => (
+                  <SortableImageItem
+                    key={url}
+                    url={url}
+                    idx={idx}
+                    onDelete={removeImage}
+                    isDeleting={deletingUrls.has(url)}
+                  />
+                ))}
+
+                {/* Uploading slots */}
+                {uploadingFiles.map(({ id, preview }) => (
+                  <div
+                    key={id}
+                    className="relative aspect-square rounded-xl overflow-hidden border border-warm-border"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={preview} alt="" className="w-full h-full object-cover opacity-30" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/20">
+                      <Loader2 size={20} className="animate-spin text-white" />
+                      <span className="text-[10px] text-white/70 font-medium">Uploading…</span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Limit notice */}
+                {atImageLimit && (
+                  <div className="aspect-square rounded-xl border border-warm-border bg-cream flex items-center justify-center p-3">
+                    <p className="text-[10px] text-stone text-center leading-relaxed">
+                      Maximum 40 images reached
+                    </p>
+                  </div>
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+
+        {/* Empty state */}
+        {images.length === 0 && uploadingFiles.length === 0 && (
+          <p className="text-xs text-stone-light text-center py-2">
+            No photos yet — upload some above
+          </p>
+        )}
 
         <input
           ref={fileInputRef}
@@ -478,27 +635,35 @@ export default function PropertyEditForm({ property }: { property: Property }) {
         />
       </div>
 
-      {/* ── Actions ───────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 pb-2">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="flex items-center gap-2 px-6 py-3 rounded-full bg-sand hover:bg-sand-dark text-white font-semibold text-sm transition-all hover:shadow-lg hover:shadow-sand/20 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {submitting ? (
-            <><Loader2 size={13} className="animate-spin" /> Saving…</>
-          ) : (
-            <><Upload size={13} /> Save changes</>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          disabled={submitting}
-          className="px-6 py-3 rounded-full border border-warm-border text-charcoal text-sm font-semibold hover:bg-[#FAFAF7] transition-all disabled:opacity-50"
-        >
-          Cancel
-        </button>
+      {/* ── Sticky save bar ────────────────────────────────────── */}
+      <div className="sticky bottom-6 z-10">
+        <div className="bg-white border border-warm-border rounded-2xl shadow-lg shadow-black/6 px-5 py-3.5 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-charcoal truncate">{property.name}</p>
+            <p className="text-[11px] text-stone-light mt-0.5">Unsaved changes will be lost</p>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              disabled={submitting}
+              className="px-4 py-2 rounded-full border border-warm-border text-charcoal text-sm font-medium hover:bg-[#F5F4F1] transition-all disabled:opacity-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex items-center gap-2 px-5 py-2 rounded-full bg-sand hover:bg-sand-dark text-white font-semibold text-sm transition-all hover:shadow-md hover:shadow-sand/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {submitting ? (
+                <><Loader2 size={13} className="animate-spin" /> Saving…</>
+              ) : (
+                <><Save size={13} /> Save changes</>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
     </form>

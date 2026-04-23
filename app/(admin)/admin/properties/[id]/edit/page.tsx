@@ -34,18 +34,23 @@ export default async function PropertyEditPage({ params }: PageProps) {
   if (!property) notFound();
 
   return (
-    <div className="max-w-2xl">
-      {/* Back + header */}
-      <div className="mb-6">
+    <div className="max-w-3xl">
+      {/* Header */}
+      <div className="mb-8">
         <Link
           href="/admin/properties"
-          className="inline-flex items-center gap-1.5 text-xs text-stone hover:text-sand transition-colors mb-4 group"
+          className="inline-flex items-center gap-1.5 text-xs text-stone hover:text-sand transition-colors mb-5 group"
         >
           <ArrowLeft size={12} className="group-hover:-translate-x-0.5 transition-transform" />
           All properties
         </Link>
-        <h1 className="font-serif text-2xl font-semibold text-charcoal">Edit property</h1>
-        <p className="text-stone text-sm mt-0.5">{property.name}</p>
+        <p className="text-[10px] uppercase tracking-widest text-sand font-semibold mb-1.5">
+          Edit Property
+        </p>
+        <h1 className="font-serif text-3xl font-semibold text-charcoal leading-tight">
+          {property.name}
+        </h1>
+        <p className="text-stone text-sm mt-1">{property.location}</p>
       </div>
 
       <PropertyEditForm property={{ ...property, nightlyRate: Number(property.nightlyRate) }} />
