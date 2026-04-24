@@ -48,14 +48,15 @@ export default function AdminLoginForm() {
       router.push("/admin");
       router.refresh();
     } catch {
-      setServerError("Network error. Please check your connection and try again.");
+      setServerError(
+        "Network error. Please check your connection and try again.",
+      );
       setSubmitting(false);
     }
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-
       {/* Email */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-light">
@@ -69,13 +70,13 @@ export default function AdminLoginForm() {
           <input
             type="email"
             autoComplete="email"
-            placeholder="franca@example.com"
+            placeholder="rammies@example.com"
             {...register("email")}
             className={cn(
               "w-full pl-9 pr-4 py-3 text-sm rounded-xl border bg-white/5 text-white placeholder:text-stone-light/30 focus:outline-none focus:ring-2 focus:ring-sand/50 focus:border-transparent transition-all",
               errors.email
                 ? "border-red-500/50 focus:ring-red-500/30"
-                : "border-white/10"
+                : "border-white/10",
             )}
           />
         </div>
@@ -106,7 +107,7 @@ export default function AdminLoginForm() {
               "w-full pl-9 pr-10 py-3 text-sm rounded-xl border bg-white/5 text-white placeholder:text-stone-light/30 focus:outline-none focus:ring-2 focus:ring-sand/50 focus:border-transparent transition-all",
               errors.password
                 ? "border-red-500/50 focus:ring-red-500/30"
-                : "border-white/10"
+                : "border-white/10",
             )}
           />
           <button
@@ -149,7 +150,6 @@ export default function AdminLoginForm() {
           "Sign in"
         )}
       </button>
-
     </form>
   );
 }

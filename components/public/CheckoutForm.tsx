@@ -9,11 +9,11 @@ import {
   User,
   Mail,
   Phone,
-  Lock,
-  CreditCard,
   AlertCircle,
   Loader2,
+  Send,
   ShieldCheck,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +64,7 @@ function InputField({
             "w-full pl-9 pr-4 py-3 text-sm rounded-xl border bg-cream focus:outline-none focus:ring-2 focus:ring-sand focus:border-transparent transition-all placeholder:text-stone-light/60",
             error
               ? "border-red-300 bg-red-50/30 focus:ring-red-300"
-              : "border-warm-border text-charcoal"
+              : "border-warm-border text-charcoal",
           )}
         />
       </div>
@@ -80,11 +80,8 @@ function InputField({
 
 export default function CheckoutForm({
   propertyId,
-  propertyName,
   checkIn,
   checkOut,
-  nights,
-  nightlyRate,
   total,
 }: CheckoutFormProps) {
   const router = useRouter();
@@ -119,30 +116,29 @@ export default function CheckoutForm({
       const json = await res.json();
 
       if (res.status === 409) {
-        setServerError(
-          "Sorry, these dates were just booked by someone else. Please go back and select different dates."
-        );
+        const msg: string = json.error ?? "";
+        if (msg.toLowerCase().includes("holding")) {
+          setServerError(
+            "Someone else is currently holding these dates. Please try again in a few minutes or go back and select different dates.",
+          );
+        } else {
+          setServerError(
+            "Sorry, these dates are no longer available. Please go back and select different dates.",
+          );
+        }
         setSubmitting(false);
         return;
       }
 
       if (!res.ok) {
-        setServerError("Payment failed. Please try again.");
+        setServerError(json.error ?? "Booking failed. Please try again.");
         setSubmitting(false);
         return;
       }
 
-      /* When Stripe is wired up:
-         const { error } = await stripe.confirmPayment({
-           elements,
-           confirmParams: { return_url: `${window.location.origin}/booking-confirmation?bookingId=${json.bookingId}` },
-         });
-         if (error) { setServerError(error.message ?? "Payment failed."); setSubmitting(false); return; }
-      */
-
       router.push(`/booking-confirmation?bookingId=${json.bookingId}`);
     } catch {
-      setServerError("Payment failed. Please try again.");
+      setServerError("Network error. Please try again.");
       setSubmitting(false);
     }
   }
@@ -150,7 +146,7 @@ export default function CheckoutForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       {/* ── Guest details ─────────────────────────────────── */}
-      <section className="bg-surface border border-warm-border rounded-[var(--radius-card)] p-6 mb-4">
+      <section className="bg-surface border border-warm-border rounded-card p-6 mb-4">
         <h2 className="font-serif text-xl font-semibold text-charcoal mb-5">
           Your details
         </h2>
@@ -185,67 +181,51 @@ export default function CheckoutForm({
         </div>
       </section>
 
-      {/* ── Payment ───────────────────────────────────────── */}
-      <section className="bg-surface border border-warm-border rounded-[var(--radius-card)] p-6 mb-4">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-serif text-xl font-semibold text-charcoal">
-            Payment
-          </h2>
-          <div className="flex items-center gap-1.5 text-xs text-stone">
-            <Lock size={11} />
-            <span>Secured by Stripe</span>
+      {/* ── How payment works ────────────────────────────── */}
+      <section className="bg-surface border border-warm-border rounded-card p-6 mb-4">
+        <h2 className="font-serif text-xl font-semibold text-charcoal mb-4">
+          How payment works
+        </h2>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="w-6 h-6 rounded-full bg-sand text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              1
+            </span>
+            <p className="text-sm text-stone leading-relaxed">
+              Submit your booking request below
+            </p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="w-6 h-6 rounded-full bg-sand text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              2
+            </span>
+            <p className="text-sm text-stone leading-relaxed">
+              We will send you a{" "}
+              <strong className="text-charcoal">Stripe Payment Link</strong> to
+              your email within a few hours
+            </p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="w-6 h-6 rounded-full bg-sand text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              3
+            </span>
+            <p className="text-sm text-stone leading-relaxed">
+              Complete payment via the secure link to confirm your booking
+            </p>
           </div>
         </div>
-
-        {/* Stripe Elements will mount here */}
-        <div className="border border-warm-border rounded-xl bg-cream p-4 space-y-4">
-          {/* Card number */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-stone">
-              Card number
-            </label>
-            <div className="relative">
-              <CreditCard
-                size={14}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-light"
-              />
-              <div className="w-full pl-9 pr-4 py-3 text-sm rounded-xl border border-warm-border bg-white text-stone-light/60 select-none">
-                {/* Stripe CardElement mounts here */}
-                <span className="italic text-xs">Card details · powered by Stripe</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Expiry + CVV */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone">
-                Expiry
-              </label>
-              <div className="w-full px-4 py-3 text-sm rounded-xl border border-warm-border bg-white text-stone-light/60 select-none">
-                <span className="italic text-xs">MM / YY</span>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone">
-                CVV
-              </label>
-              <div className="w-full px-4 py-3 text-sm rounded-xl border border-warm-border bg-white text-stone-light/60 select-none">
-                <span className="italic text-xs">···</span>
-              </div>
-            </div>
-          </div>
+        <div className="mt-4 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+          <Clock size={12} className="shrink-0" />
+          <span>
+            Your booking request expires in 24 hours if payment is not completed
+          </span>
         </div>
-
-        <p className="text-xs text-stone mt-3 leading-relaxed">
-          Your card details are encrypted and never stored on our servers.
-        </p>
       </section>
 
       {/* ── Server error ──────────────────────────────────── */}
       {serverError && (
         <div className="flex items-start gap-2.5 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">
-          <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+          <AlertCircle size={15} className="mt-0.5 shrink-0" />
           <span>{serverError}</span>
         </div>
       )}
@@ -259,12 +239,12 @@ export default function CheckoutForm({
         {submitting ? (
           <>
             <Loader2 size={16} className="animate-spin" />
-            Processing…
+            Submitting…
           </>
         ) : (
           <>
-            <Lock size={14} />
-            Pay ${total.toLocaleString()}
+            <Send size={14} />
+            Submit Booking Request
           </>
         )}
       </button>
@@ -273,10 +253,10 @@ export default function CheckoutForm({
       <div className="flex items-center justify-center gap-5 mt-5 text-xs text-stone">
         <div className="flex items-center gap-1.5">
           <ShieldCheck size={13} className="text-sand" />
-          SSL encrypted
+          Secure booking
         </div>
         <div className="flex items-center gap-1.5">
-          <Lock size={12} className="text-sand" />
+          <ShieldCheck size={12} className="text-sand" />
           No hidden fees
         </div>
       </div>

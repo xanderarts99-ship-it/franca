@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { cancelBooking } from "@/lib/bookings";
+import { cancelBooking, confirmBooking, rejectBooking } from "@/lib/bookings";
 
 export async function GET(
   _request: NextRequest,
@@ -36,33 +36,71 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const body = await request.json() as { action?: string };
+  const body = await request.json() as {
+    action?: string;
+    paymentNotes?: string;
+    rejectionReason?: string;
+  };
 
-  if (body.action !== "cancel") {
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  if (!body.action) {
+    return NextResponse.json({ error: "action is required" }, { status: 400 });
   }
 
-  const existing = await prisma.booking.findUnique({
-    where: { id },
-    select: { status: true },
-  });
-
-  if (!existing) {
-    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  // ── Confirm payment received ────────────────────────────────────
+  if (body.action === "confirm") {
+    try {
+      const updated = await confirmBooking(id, body.paymentNotes);
+      return NextResponse.json({ booking: updated });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to confirm booking";
+      const status =
+        message === "Booking not found" ? 404
+        : message.includes("no longer available") ? 409
+        : 400;
+      return NextResponse.json({ error: message }, { status });
+    }
   }
 
-  if (existing.status === "CANCELLED") {
-    return NextResponse.json({ error: "Booking is already cancelled" }, { status: 400 });
+  // ── Reject booking request ──────────────────────────────────────
+  if (body.action === "reject") {
+    try {
+      const updated = await rejectBooking(id, body.rejectionReason);
+      return NextResponse.json({ booking: updated });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to reject booking";
+      const status = message === "Booking not found" ? 404 : 400;
+      return NextResponse.json({ error: message }, { status });
+    }
   }
 
-  try {
-    await cancelBooking(id);
-    const updated = await prisma.booking.findUnique({ where: { id }, include: { property: true } });
-    return NextResponse.json({ booking: updated });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to cancel booking" },
-      { status: 500 }
-    );
+  // ── Cancel confirmed booking ────────────────────────────────────
+  if (body.action === "cancel") {
+    const existing = await prisma.booking.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+    if (existing.status !== "CONFIRMED") {
+      return NextResponse.json(
+        { error: "Only confirmed bookings can be cancelled" },
+        { status: 400 }
+      );
+    }
+
+    try {
+      await cancelBooking(id);
+      const updated = await prisma.booking.findUnique({ where: { id }, include: { property: true } });
+      return NextResponse.json({ booking: updated });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Failed to cancel booking" },
+        { status: 500 }
+      );
+    }
   }
+
+  return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }

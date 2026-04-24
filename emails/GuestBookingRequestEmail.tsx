@@ -12,32 +12,33 @@ import {
   Text,
 } from "@react-email/components";
 
-export interface BookingConfirmationProps {
+export interface GuestBookingRequestEmailProps {
   bookingReference: string;
   propertyName: string;
   guestName: string;
+  guestEmail: string;
   checkIn: string;
   checkOut: string;
   totalNights: number;
   totalAmount: string;
 }
 
-export default function BookingConfirmation({
+export default function GuestBookingRequestEmail({
   bookingReference,
   propertyName,
   guestName,
+  guestEmail,
   checkIn,
   checkOut,
   totalNights,
   totalAmount,
-}: BookingConfirmationProps) {
+}: GuestBookingRequestEmailProps) {
   return (
     <Html>
       <Head />
-      <Preview>Booking confirmed — {bookingReference}</Preview>
+      <Preview>Booking request received — {bookingReference}</Preview>
       <Body style={body}>
         <Container style={container}>
-
           {/* Header */}
           <Section style={header}>
             <Text style={brandName}>Rammies Vacation</Text>
@@ -51,20 +52,12 @@ export default function BookingConfirmation({
 
           <Hr style={divider} />
 
-          {/* Payment received note */}
-          <Section style={paymentNote}>
-            <Text style={paymentNoteText}>
-              ✓ Your payment has been received and your booking is officially confirmed.
-            </Text>
-          </Section>
-
           {/* Greeting */}
           <Section style={contentSection}>
-            <Heading style={h1}>Your booking is confirmed!</Heading>
+            <Heading style={h1}>Booking Request Received</Heading>
             <Text style={paragraph}>
-              Hi {guestName}, great news — your stay at{" "}
-              <strong>{propertyName}</strong> has been confirmed. We look
-              forward to welcoming you.
+              Hi {guestName}, we&apos;ve received your booking request for{" "}
+              <strong>{propertyName}</strong>. Your request is now under review.
             </Text>
           </Section>
 
@@ -90,8 +83,14 @@ export default function BookingConfirmation({
                 </Text>
               </Column>
               <Column style={detailCell}>
-                <Text style={detailLabel}>TOTAL CHARGED</Text>
-                <Text style={{ ...detailValue, color: "#1B3A6B", fontWeight: "700" }}>
+                <Text style={detailLabel}>TOTAL AMOUNT</Text>
+                <Text
+                  style={{
+                    ...detailValue,
+                    color: "#1B3A6B",
+                    fontWeight: "700",
+                  }}
+                >
                   {totalAmount}
                 </Text>
               </Column>
@@ -100,17 +99,33 @@ export default function BookingConfirmation({
 
           <Hr style={divider} />
 
-          {/* Footer note */}
+          {/* What happens next */}
           <Section style={contentSection}>
+            <Text style={sectionHeading}>What happens next</Text>
             <Text style={paragraph}>
-              If you have any questions about your reservation, please contact us
-              and reference your booking number above.
+              Your booking request has been received. You will receive a Stripe
+              Payment Link to <strong>{guestEmail}</strong> within a few hours.
+              Your booking will be confirmed once payment is received.
             </Text>
-            <Text style={footer}>
-              © {new Date().getFullYear()} Rammies Vacation · All rights reserved
+            <Text style={warningBox}>
+              ⏳ Important: Your request will expire in 24 hours if payment is
+              not completed.
+            </Text>
+            <Text style={paragraph}>
+              If you have any questions, simply reply to this email and
+              we&apos;ll get back to you as soon as possible.
             </Text>
           </Section>
 
+          <Hr style={divider} />
+
+          {/* Footer */}
+          <Section style={contentSection}>
+            <Text style={footer}>
+              © {new Date().getFullYear()} Rammies Vacation · All rights
+              reserved
+            </Text>
+          </Section>
         </Container>
       </Body>
     </Html>
@@ -169,19 +184,13 @@ const refCode: React.CSSProperties = {
   fontFamily: "monospace",
 };
 
-const divider: React.CSSProperties = {
-  borderColor: "#E8E2D9",
-  margin: "0",
-};
-
+const divider: React.CSSProperties = { borderColor: "#E8E2D9", margin: "0" };
 const innerDivider: React.CSSProperties = {
   borderColor: "#E8E2D9",
   margin: "12px 0",
 };
 
-const contentSection: React.CSSProperties = {
-  padding: "24px 40px",
-};
+const contentSection: React.CSSProperties = { padding: "24px 40px" };
 
 const h1: React.CSSProperties = {
   color: "#1C1917",
@@ -190,12 +199,32 @@ const h1: React.CSSProperties = {
   margin: "0 0 12px",
 };
 
+const sectionHeading: React.CSSProperties = {
+  color: "#1C1917",
+  fontSize: "15px",
+  fontWeight: "700",
+  margin: "0 0 8px",
+  fontFamily: "sans-serif",
+};
+
 const paragraph: React.CSSProperties = {
   color: "#57534E",
   fontSize: "15px",
   lineHeight: "1.6",
-  margin: "0 0 8px",
+  margin: "0 0 12px",
   fontFamily: "sans-serif",
+};
+
+const warningBox: React.CSSProperties = {
+  backgroundColor: "#FFFBEB",
+  border: "1px solid #FDE68A",
+  borderRadius: "8px",
+  color: "#92400E",
+  fontSize: "13px",
+  fontFamily: "sans-serif",
+  padding: "12px 16px",
+  margin: "0 0 12px",
+  lineHeight: "1.5",
 };
 
 const detailsBox: React.CSSProperties = {
@@ -236,24 +265,9 @@ const detailValue: React.CSSProperties = {
   fontFamily: "sans-serif",
 };
 
-const paymentNote: React.CSSProperties = {
-  backgroundColor: "#F0FDF4",
-  borderBottom: "1px solid #BBF7D0",
-  padding: "12px 40px",
-  textAlign: "center",
-};
-
-const paymentNoteText: React.CSSProperties = {
-  color: "#166534",
-  fontSize: "13px",
-  fontWeight: "600",
-  margin: "0",
-  fontFamily: "sans-serif",
-};
-
 const footer: React.CSSProperties = {
   color: "#A8A29E",
   fontSize: "11px",
-  margin: "16px 0 0",
+  margin: "0",
   fontFamily: "sans-serif",
 };

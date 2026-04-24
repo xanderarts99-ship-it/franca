@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, TrendingUp, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { CalendarDays, TrendingUp, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
+import { expireStaleBookings } from "@/lib/bookings";
+import type { BookingStatus } from "@prisma/client";
 
 export const metadata: Metadata = { title: "Bookings — Admin" };
 
-type Status = "PENDING" | "CONFIRMED" | "CANCELLED";
+type DisplayStatus = "PENDING_PAYMENT" | "CONFIRMED" | "CANCELLED" | "EXPIRED" | "PENDING";
 
-const STATUS_CONFIG: Record<Status, { label: string; className: string; icon: React.ElementType }> = {
+const STATUS_CONFIG: Record<DisplayStatus, { label: string; className: string; icon: React.ElementType }> = {
   CONFIRMED: {
     label: "Confirmed",
     className: "bg-emerald-50 text-emerald-700 border-emerald-100",
     icon: CheckCircle2,
+  },
+  PENDING_PAYMENT: {
+    label: "Awaiting Payment",
+    className: "bg-amber-50 text-amber-700 border-amber-100",
+    icon: Clock,
   },
   PENDING: {
     label: "Pending",
@@ -24,6 +31,11 @@ const STATUS_CONFIG: Record<Status, { label: string; className: string; icon: Re
     className: "bg-red-50 text-red-600 border-red-100",
     icon: XCircle,
   },
+  EXPIRED: {
+    label: "Expired",
+    className: "bg-stone-100 text-stone-500 border-stone-200",
+    icon: Ban,
+  },
 };
 
 function formatDate(date: Date) {
@@ -34,8 +46,9 @@ function formatDate(date: Date) {
   });
 }
 
-function StatusBadge({ status }: { status: Status }) {
-  const { label, className, icon: Icon } = STATUS_CONFIG[status];
+function StatusBadge({ status }: { status: BookingStatus }) {
+  const cfg = STATUS_CONFIG[status as DisplayStatus] ?? STATUS_CONFIG.CANCELLED;
+  const { label, className, icon: Icon } = cfg;
   return (
     <span
       className={cn(
@@ -49,24 +62,57 @@ function StatusBadge({ status }: { status: Status }) {
   );
 }
 
-export default async function AdminBookingsPage() {
-  const bookings = await prisma.booking.findMany({
-    include: {
-      property: { select: { name: true } },
-    },
-    orderBy: { checkIn: "asc" },
-  });
+type Tab = "all" | "pending" | "confirmed" | "closed";
 
-  const confirmed = bookings.filter((b) => b.status === "CONFIRMED");
-  const pending   = bookings.filter((b) => b.status === "PENDING");
-  const revenue   = confirmed.reduce((s, b) => s + Number(b.totalAmount), 0);
+interface PageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function AdminBookingsPage({ searchParams }: PageProps) {
+  // Clean up stale pending bookings before rendering
+  await expireStaleBookings().catch((err) =>
+    console.error("expireStaleBookings error:", err)
+  );
+
+  const { tab = "all" } = await searchParams;
+  const activeTab = (["all", "pending", "confirmed", "closed"].includes(tab) ? tab : "all") as Tab;
+
+  const statusFilter: BookingStatus[] | undefined =
+    activeTab === "pending" ? ["PENDING_PAYMENT"]
+    : activeTab === "confirmed" ? ["CONFIRMED"]
+    : activeTab === "closed" ? ["CANCELLED", "EXPIRED"]
+    : undefined;
+
+  const [bookings, pendingCount, confirmedCount] = await Promise.all([
+    prisma.booking.findMany({
+      where: statusFilter ? { status: { in: statusFilter } } : {},
+      include: { property: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.booking.count({ where: { status: "PENDING_PAYMENT" } }),
+    prisma.booking.count({ where: { status: "CONFIRMED" } }),
+  ]);
+
+  const revenue = (
+    await prisma.booking.findMany({
+      where: { status: "CONFIRMED" },
+      select: { totalAmount: true },
+    })
+  ).reduce((s, b) => s + Number(b.totalAmount), 0);
+
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: "all", label: "All" },
+    { key: "pending", label: "Pending", count: pendingCount },
+    { key: "confirmed", label: "Confirmed", count: confirmedCount },
+    { key: "closed", label: "Cancelled / Expired" },
+  ];
 
   return (
     <div>
       {/* Page heading */}
       <div className="mb-7">
         <h1 className="font-serif text-2xl font-semibold text-charcoal">Bookings</h1>
-        <p className="text-stone text-sm mt-0.5">All guest reservations, sorted by check-in.</p>
+        <p className="text-stone text-sm mt-0.5">All guest reservations, newest first.</p>
       </div>
 
       {/* Stat cards */}
@@ -87,26 +133,70 @@ export default async function AdminBookingsPage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-stone-light">Confirmed</p>
             <CheckCircle2 size={14} className="text-emerald-500" />
           </div>
-          <p className="font-serif text-2xl font-semibold text-charcoal">{confirmed.length}</p>
+          <p className="font-serif text-2xl font-semibold text-charcoal">{confirmedCount}</p>
           <p className="text-xs text-stone mt-0.5">active reservations</p>
         </div>
 
-        <div className="bg-white border border-warm-border rounded-[var(--radius-card)] p-4">
+        <div className={cn(
+          "border rounded-[var(--radius-card)] p-4",
+          pendingCount > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-warm-border"
+        )}>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-stone-light">Pending</p>
-            <Clock size={14} className="text-amber-500" />
+            <p className={cn(
+              "text-xs font-semibold uppercase tracking-wider",
+              pendingCount > 0 ? "text-amber-700" : "text-stone-light"
+            )}>
+              Awaiting Payment
+            </p>
+            <Clock size={14} className={pendingCount > 0 ? "text-amber-500" : "text-stone-light"} />
           </div>
-          <p className="font-serif text-2xl font-semibold text-charcoal">{pending.length}</p>
-          <p className="text-xs text-stone mt-0.5">awaiting payment</p>
+          <p className={cn(
+            "font-serif text-2xl font-semibold",
+            pendingCount > 0 ? "text-amber-800" : "text-charcoal"
+          )}>
+            {pendingCount}
+          </p>
+          <p className={cn("text-xs mt-0.5", pendingCount > 0 ? "text-amber-700 font-medium" : "text-stone")}>
+            {pendingCount > 0 ? "require your action" : "no pending requests"}
+          </p>
         </div>
+      </div>
+
+      {/* Tab filter */}
+      <div className="flex items-center gap-1 mb-4 bg-white border border-warm-border rounded-xl p-1 w-fit">
+        {tabs.map(({ key, label, count }) => (
+          <Link
+            key={key}
+            href={`/admin?tab=${key}`}
+            className={cn(
+              "relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+              activeTab === key
+                ? "bg-sand text-white shadow-sm"
+                : "text-stone hover:text-charcoal hover:bg-[#FAFAF7]"
+            )}
+          >
+            {label}
+            {count !== undefined && count > 0 && (
+              <span className={cn(
+                "inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold",
+                activeTab === key
+                  ? "bg-white/20 text-white"
+                  : key === "pending"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-warm-border text-stone"
+              )}>
+                {count}
+              </span>
+            )}
+          </Link>
+        ))}
       </div>
 
       {/* Table card */}
       <div className="bg-white border border-warm-border rounded-[var(--radius-card)] overflow-hidden">
-
         {bookings.length === 0 ? (
           <div className="py-16 text-center text-stone text-sm">
-            No bookings yet.
+            No bookings in this category.
           </div>
         ) : (
           <>
@@ -131,7 +221,10 @@ export default async function AdminBookingsPage() {
                   {bookings.map((b) => (
                     <tr
                       key={b.id}
-                      className="border-b border-warm-border last:border-0 hover:bg-[#FAFAF7] transition-colors"
+                      className={cn(
+                        "border-b border-warm-border last:border-0 hover:bg-[#FAFAF7] transition-colors",
+                        b.status === "PENDING_PAYMENT" && "bg-amber-50/40"
+                      )}
                     >
                       <td className="px-5 py-3.5 whitespace-nowrap">
                         <Link
@@ -159,7 +252,7 @@ export default async function AdminBookingsPage() {
                         ${Number(b.totalAmount).toLocaleString()}
                       </td>
                       <td className="px-5 py-3.5">
-                        <StatusBadge status={b.status as Status} />
+                        <StatusBadge status={b.status} />
                       </td>
                     </tr>
                   ))}
@@ -173,13 +266,16 @@ export default async function AdminBookingsPage() {
                 <Link
                   key={b.id}
                   href={`/admin/bookings/${b.id}`}
-                  className="block px-4 py-4 hover:bg-[#FAFAF7] transition-colors"
+                  className={cn(
+                    "block px-4 py-4 hover:bg-[#FAFAF7] transition-colors",
+                    b.status === "PENDING_PAYMENT" && "bg-amber-50/40"
+                  )}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <span className="font-mono text-xs font-semibold text-sand">
                       {b.bookingReference}
                     </span>
-                    <StatusBadge status={b.status as Status} />
+                    <StatusBadge status={b.status} />
                   </div>
                   <p className="font-medium text-charcoal text-sm">{b.guestName}</p>
                   <p className="text-xs text-stone mb-2">{b.property.name}</p>

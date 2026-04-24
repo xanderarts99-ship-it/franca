@@ -12,29 +12,27 @@ import {
   Text,
 } from "@react-email/components";
 
-export interface BookingConfirmationProps {
+export interface GuestBookingRejectedEmailProps {
   bookingReference: string;
   propertyName: string;
   guestName: string;
   checkIn: string;
   checkOut: string;
-  totalNights: number;
-  totalAmount: string;
+  rejectionReason?: string;
 }
 
-export default function BookingConfirmation({
+export default function GuestBookingRejectedEmail({
   bookingReference,
   propertyName,
   guestName,
   checkIn,
   checkOut,
-  totalNights,
-  totalAmount,
-}: BookingConfirmationProps) {
+  rejectionReason,
+}: GuestBookingRejectedEmailProps) {
   return (
     <Html>
       <Head />
-      <Preview>Booking confirmed — {bookingReference}</Preview>
+      <Preview>Booking request update — {bookingReference}</Preview>
       <Body style={body}>
         <Container style={container}>
 
@@ -51,26 +49,28 @@ export default function BookingConfirmation({
 
           <Hr style={divider} />
 
-          {/* Payment received note */}
-          <Section style={paymentNote}>
-            <Text style={paymentNoteText}>
-              ✓ Your payment has been received and your booking is officially confirmed.
-            </Text>
-          </Section>
-
-          {/* Greeting */}
+          {/* Main message */}
           <Section style={contentSection}>
-            <Heading style={h1}>Your booking is confirmed!</Heading>
+            <Heading style={h1}>Booking Request Update</Heading>
             <Text style={paragraph}>
-              Hi {guestName}, great news — your stay at{" "}
-              <strong>{propertyName}</strong> has been confirmed. We look
-              forward to welcoming you.
+              Hi {guestName}, thank you for your interest in staying at{" "}
+              <strong>{propertyName}</strong>.
             </Text>
+            <Text style={paragraph}>
+              Unfortunately we are unable to confirm your booking request for these dates.
+            </Text>
+
+            {rejectionReason && (
+              <Section style={reasonBox}>
+                <Text style={reasonLabel}>NOTE FROM THE HOST</Text>
+                <Text style={reasonText}>{rejectionReason}</Text>
+              </Section>
+            )}
           </Section>
 
           {/* Stay details */}
           <Section style={detailsBox}>
-            <Text style={detailsTitle}>Stay Details</Text>
+            <Text style={detailsTitle}>Requested Stay</Text>
             <Row>
               <Column style={detailCell}>
                 <Text style={detailLabel}>CHECK-IN</Text>
@@ -84,27 +84,22 @@ export default function BookingConfirmation({
             <Hr style={innerDivider} />
             <Row>
               <Column style={detailCell}>
-                <Text style={detailLabel}>DURATION</Text>
-                <Text style={detailValue}>
-                  {totalNights} night{totalNights > 1 ? "s" : ""}
-                </Text>
-              </Column>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>TOTAL CHARGED</Text>
-                <Text style={{ ...detailValue, color: "#1B3A6B", fontWeight: "700" }}>
-                  {totalAmount}
-                </Text>
+                <Text style={detailLabel}>PROPERTY</Text>
+                <Text style={detailValue}>{propertyName}</Text>
               </Column>
             </Row>
           </Section>
 
           <Hr style={divider} />
 
-          {/* Footer note */}
+          {/* Encouragement */}
           <Section style={contentSection}>
             <Text style={paragraph}>
-              If you have any questions about your reservation, please contact us
-              and reference your booking number above.
+              We hope to welcome you at another time. Please feel free to browse our
+              available dates and submit a new request for dates that work for you.
+            </Text>
+            <Text style={paragraph}>
+              If you have any questions, simply reply to this email.
             </Text>
             <Text style={footer}>
               © {new Date().getFullYear()} Rammies Vacation · All rights reserved
@@ -169,19 +164,10 @@ const refCode: React.CSSProperties = {
   fontFamily: "monospace",
 };
 
-const divider: React.CSSProperties = {
-  borderColor: "#E8E2D9",
-  margin: "0",
-};
+const divider: React.CSSProperties = { borderColor: "#E8E2D9", margin: "0" };
+const innerDivider: React.CSSProperties = { borderColor: "#E8E2D9", margin: "12px 0" };
 
-const innerDivider: React.CSSProperties = {
-  borderColor: "#E8E2D9",
-  margin: "12px 0",
-};
-
-const contentSection: React.CSSProperties = {
-  padding: "24px 40px",
-};
+const contentSection: React.CSSProperties = { padding: "24px 40px" };
 
 const h1: React.CSSProperties = {
   color: "#1C1917",
@@ -194,7 +180,31 @@ const paragraph: React.CSSProperties = {
   color: "#57534E",
   fontSize: "15px",
   lineHeight: "1.6",
-  margin: "0 0 8px",
+  margin: "0 0 12px",
+  fontFamily: "sans-serif",
+};
+
+const reasonBox: React.CSSProperties = {
+  backgroundColor: "#F5F2EC",
+  borderRadius: "8px",
+  padding: "16px 20px",
+  margin: "0 0 12px",
+};
+
+const reasonLabel: React.CSSProperties = {
+  color: "#9B8E80",
+  fontSize: "9px",
+  fontWeight: "700",
+  letterSpacing: "0.1em",
+  margin: "0 0 6px",
+  fontFamily: "sans-serif",
+};
+
+const reasonText: React.CSSProperties = {
+  color: "#1C1917",
+  fontSize: "14px",
+  lineHeight: "1.5",
+  margin: "0",
   fontFamily: "sans-serif",
 };
 
@@ -214,10 +224,7 @@ const detailsTitle: React.CSSProperties = {
   letterSpacing: "0.02em",
 };
 
-const detailCell: React.CSSProperties = {
-  padding: "0 12px 0 0",
-  verticalAlign: "top",
-};
+const detailCell: React.CSSProperties = { padding: "0 12px 0 0", verticalAlign: "top" };
 
 const detailLabel: React.CSSProperties = {
   color: "#9B8E80",
@@ -231,21 +238,6 @@ const detailLabel: React.CSSProperties = {
 const detailValue: React.CSSProperties = {
   color: "#1C1917",
   fontSize: "14px",
-  fontWeight: "600",
-  margin: "0",
-  fontFamily: "sans-serif",
-};
-
-const paymentNote: React.CSSProperties = {
-  backgroundColor: "#F0FDF4",
-  borderBottom: "1px solid #BBF7D0",
-  padding: "12px 40px",
-  textAlign: "center",
-};
-
-const paymentNoteText: React.CSSProperties = {
-  color: "#166534",
-  fontSize: "13px",
   fontWeight: "600",
   margin: "0",
   fontFamily: "sans-serif",

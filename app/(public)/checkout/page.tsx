@@ -40,15 +40,8 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   const nightlyRate = Number(property.nightlyRate);
   const total = nights * nightlyRate;
 
-  const isMockMode = process.env.NEXT_PUBLIC_PAYMENT_MODE === "mock";
-
   return (
     <div className="min-h-screen bg-cream">
-      {isMockMode && (
-        <div className="bg-amber-400 text-amber-900 text-sm font-semibold text-center py-2.5 px-4">
-          ⚠️ Test Mode — No real payment will be charged
-        </div>
-      )}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20">
 
         {/* ── Back link ─────────────────────────────────────── */}
@@ -66,7 +59,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             Complete your booking
           </h1>
           <p className="text-stone text-sm mt-1.5">
-            You're just one step away from securing your stay.
+            Fill in your details and we&apos;ll send you a payment link to confirm your stay.
           </p>
         </div>
 

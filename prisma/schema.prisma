@@ -9,9 +9,11 @@ datasource db {
 // ── Enums ──────────────────────────────────────────────────────────
 
 enum BookingStatus {
-  PENDING
+  PENDING_PAYMENT
   CONFIRMED
   CANCELLED
+  EXPIRED
+  PENDING
 }
 
 enum BlockedReason {
@@ -53,9 +55,13 @@ model Booking {
   checkOut              DateTime
   totalNights           Int
   totalAmount           Decimal
-  status                BookingStatus @default(PENDING)
-  stripePaymentIntentId String        @unique
+  status                BookingStatus @default(PENDING_PAYMENT)
+  stripePaymentIntentId String?       @unique
   bookingReference      String        @unique
+  expiresAt             DateTime?
+  rejectedAt            DateTime?
+  rejectionReason       String?
+  paymentNotes          String?
   blockedDates          BlockedDate[]
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt

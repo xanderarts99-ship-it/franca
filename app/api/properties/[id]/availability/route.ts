@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getBlockedDatesForProperty } from "@/lib/availability";
+import { expireStaleBookings } from "@/lib/bookings";
 
 const querySchema = z.object({
   month: z.coerce.number().int().min(1).max(12),
@@ -13,6 +14,11 @@ export async function GET(
 ) {
   const { id } = await params;
   const { searchParams } = request.nextUrl;
+
+  // Clean up stale pending bookings so freed dates appear available
+  await expireStaleBookings().catch((err) =>
+    console.error("expireStaleBookings error:", err)
+  );
 
   const parsed = querySchema.safeParse({
     month: searchParams.get("month"),
