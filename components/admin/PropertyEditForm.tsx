@@ -292,7 +292,7 @@ export default function PropertyEditForm({ property }: { property: Property }) {
     const newIdx = images.indexOf(over.id as string);
     if (oldIdx === -1 || newIdx === -1) return;
 
-    const original  = [...images];
+    const previousImages = [...images];
     const reordered = arrayMove(images, oldIdx, newIdx);
     setImages(reordered);
 
@@ -302,10 +302,19 @@ export default function PropertyEditForm({ property }: { property: Property }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ images: reordered }),
       });
-      if (!res.ok) throw new Error("Reorder failed");
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({})) as { error?: string; issues?: { field: string; message: string }[] };
+        const detail = json.issues?.length
+          ? json.issues.map((i) => `${i.field}: ${i.message}`).join(", ")
+          : json.error ?? "Failed to save image order";
+        setImages(previousImages);
+        toast.error(detail);
+        return;
+      }
+      toast.success("Image order saved");
     } catch {
-      setImages(original);
-      toast.error("Failed to save image order. Please try again.");
+      setImages(previousImages);
+      toast.error("Network error. Please try again.");
     }
   }
 
@@ -320,8 +329,11 @@ export default function PropertyEditForm({ property }: { property: Property }) {
       });
 
       if (!res.ok) {
-        const json = await res.json().catch(() => ({})) as { error?: string };
-        toast.error(json.error ?? "Failed to save. Please try again.");
+        const json = await res.json().catch(() => ({})) as { error?: string; issues?: { field: string; message: string }[] };
+        const detail = json.issues?.length
+          ? json.issues.map((i) => `${i.field}: ${i.message}`).join(", ")
+          : json.error ?? "Failed to save changes";
+        toast.error(detail);
         return;
       }
 
@@ -530,11 +542,11 @@ export default function PropertyEditForm({ property }: { property: Property }) {
           aside={
             <span className={cn(
               "text-xs font-semibold px-2.5 py-1 rounded-full shrink-0",
-              atImageLimit
-                ? "bg-red-50 text-red-500"
+              images.length >= 40
+                ? "bg-warm-border/60 text-stone"
                 : "bg-sand-light text-sand"
             )}>
-              {totalImages} / 40
+              {images.length >= 40 ? `${images.length} photos` : `${totalImages} / 40`}
             </span>
           }
         />
@@ -637,24 +649,27 @@ export default function PropertyEditForm({ property }: { property: Property }) {
 
       {/* ── Sticky save bar ────────────────────────────────────── */}
       <div className="sticky bottom-6 z-10">
-        <div className="bg-white border border-warm-border rounded-2xl shadow-lg shadow-black/6 px-5 py-3.5 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-charcoal truncate">{property.name}</p>
-            <p className="text-[11px] text-stone-light mt-0.5">Unsaved changes will be lost</p>
+        <div className="bg-charcoal rounded-2xl shadow-2xl px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-1 h-9 rounded-full bg-sand shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white/90 truncate">{property.name}</p>
+              <p className="text-[11px] text-white/35 mt-0.5">Review and save your changes</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               type="button"
               onClick={() => router.back()}
               disabled={submitting}
-              className="px-4 py-2 rounded-full border border-warm-border text-charcoal text-sm font-medium hover:bg-[#F5F4F1] transition-all disabled:opacity-50 cursor-pointer"
+              className="px-5 py-2.5 rounded-full border border-white/15 text-white/60 text-sm font-medium hover:border-white/30 hover:text-white/85 transition-all disabled:opacity-50 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 px-5 py-2 rounded-full bg-sand hover:bg-sand-dark text-white font-semibold text-sm transition-all hover:shadow-md hover:shadow-sand/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-sand hover:bg-sand-dark text-white font-semibold text-sm transition-all hover:shadow-lg hover:shadow-sand/40 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {submitting ? (
                 <><Loader2 size={13} className="animate-spin" /> Saving…</>

@@ -34,7 +34,7 @@ export default async function PropertyEditPage({ params }: PageProps) {
   if (!property) notFound();
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <Link

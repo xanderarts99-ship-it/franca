@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadImage, deleteImage, extractPublicId, extractFolderFromUrl } from "@/lib/cloudinary";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -62,7 +63,7 @@ export async function POST(
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    let folder = `rammies-vacation/${property.name}`;
+    let folder = `rammies-vacation/${encodeURIComponent(property.name)}`;
     if (property.images.length > 0) {
       try {
         folder = extractFolderFromUrl(property.images[0]);
@@ -74,10 +75,15 @@ export async function POST(
 
     const updated = await prisma.property.update({
       where: { id },
-      data: { images: { push: url } },
+      data: {
+        images: { push: url },
+        ...(property.images.length === 0 ? { coverImageUrl: url } : {}),
+      },
       select: { images: true },
     });
 
+    revalidatePath("/");
+    revalidatePath(`/properties/${id}`);
     return NextResponse.json({ url, images: updated.images });
   } catch (err) {
     console.error("[POST /api/admin/properties/[id]/images] Upload error:", err);
@@ -88,7 +94,19 @@ export async function POST(
   }
 }
 
-const deleteSchema = z.object({ url: z.string().url() });
+const deleteSchema = z.object({
+  url: z.string().refine(
+    (val) => {
+      try {
+        new URL(encodeURI(val));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Invalid image URL" }
+  ),
+});
 
 export async function DELETE(
   request: NextRequest,
@@ -144,10 +162,17 @@ export async function DELETE(
     const newImages = property.images.filter((img) => img !== url);
     const updated = await prisma.property.update({
       where: { id },
-      data: { images: newImages },
+      data: {
+        images: newImages,
+        ...(url === property.images[0] && newImages.length > 0
+          ? { coverImageUrl: newImages[0] }
+          : {}),
+      },
       select: { images: true },
     });
 
+    revalidatePath("/");
+    revalidatePath(`/properties/${id}`);
     return NextResponse.json({ success: true, images: updated.images });
   } catch (err) {
     console.error("[DELETE /api/admin/properties/[id]/images] Delete error:", err);

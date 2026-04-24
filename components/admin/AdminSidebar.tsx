@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Building2, LogOut } from "lucide-react";
+import { LayoutDashboard, Building2, LogOut, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -60,8 +60,17 @@ export default function AdminSidebar() {
         })}
       </nav>
 
-      {/* Sign out */}
-      <div className="px-3 pb-5 border-t border-white/8 pt-4">
+      {/* Footer actions */}
+      <div className="px-3 pb-5 border-t border-white/8 pt-4 space-y-0.5">
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-stone-light/50 hover:text-white hover:bg-white/5 transition-all"
+        >
+          <ExternalLink size={15} className="shrink-0" />
+          View site
+        </a>
         <button
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-stone-light/50 hover:text-white hover:bg-white/5 transition-all"
           onClick={() => signOut({ callbackUrl: "/admin/login" })}

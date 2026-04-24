@@ -22,15 +22,15 @@ export default function PhotoGrid({ images, propertyName }: PhotoGridProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const hasImages = images.length > 0;
-  const displayCount = Math.min(images.length || 5, 5);
-  const showAllButton = (hasImages ? images.length : 5) > 5;
+  const totalCount = hasImages ? images.length : 5;
+  const showAllButton = totalCount > 5;
 
   const openLightbox = (i: number) => setLightboxIndex(i);
   const closeLightbox = () => setLightboxIndex(null);
   const prev = () =>
-    setLightboxIndex((i) => (i === null ? 0 : (i - 1 + displayCount) % displayCount));
+    setLightboxIndex((i) => (i === null ? 0 : (i - 1 + totalCount) % totalCount));
   const next = () =>
-    setLightboxIndex((i) => (i === null ? 0 : (i + 1) % displayCount));
+    setLightboxIndex((i) => (i === null ? 0 : (i + 1) % totalCount));
 
   const renderCell = (index: number, className: string) => (
     <button
@@ -68,7 +68,7 @@ export default function PhotoGrid({ images, propertyName }: PhotoGridProps) {
   return (
     <>
       {/* ── Desktop grid (hidden on mobile) ─────────────────── */}
-      <div className="hidden md:grid grid-cols-4 grid-rows-2 gap-2 h-[460px] rounded-[var(--radius-card)] overflow-hidden">
+      <div className="hidden md:grid grid-cols-4 grid-rows-2 gap-2 h-115 rounded-card overflow-hidden">
         {/* Large hero — spans 2 cols × 2 rows */}
         {renderCell(0, "col-span-2 row-span-2")}
         {/* Top right */}
@@ -93,7 +93,7 @@ export default function PhotoGrid({ images, propertyName }: PhotoGridProps) {
       </div>
 
       {/* ── Mobile single image ──────────────────────────────── */}
-      <div className="md:hidden relative aspect-[4/3] rounded-[var(--radius-card)] overflow-hidden bg-cream-dark">
+      <div className="md:hidden relative aspect-[4/3] rounded-card overflow-hidden bg-cream-dark">
         {hasImages ? (
           <Image
             src={images[0]}

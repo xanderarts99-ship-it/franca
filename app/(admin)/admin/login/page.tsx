@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import AdminLoginForm from "@/components/admin/AdminLoginForm";
 
 export const metadata: Metadata = {
@@ -7,7 +9,18 @@ export const metadata: Metadata = {
 
 export default function AdminLoginPage() {
   return (
-    <div className="min-h-screen bg-charcoal flex items-center justify-center px-4">
+    <div className="relative min-h-screen bg-charcoal flex items-center justify-center px-4">
+
+      {/* Back to public site */}
+      <div className="absolute top-5 left-5">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs text-stone-light/40 hover:text-stone-light/80 transition-colors"
+        >
+          <ArrowLeft size={12} />
+          Rammies Vacation
+        </Link>
+      </div>
 
       {/* Subtle radial glow */}
       <div
@@ -38,7 +51,7 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Login card */}
-        <div className="bg-[#232119] border border-white/8 rounded-[var(--radius-card)] p-7">
+        <div className="bg-[#232119] border border-white/8 rounded-card p-7">
           <h2 className="font-serif text-lg font-semibold text-white mb-5">
             Sign in
           </h2>
