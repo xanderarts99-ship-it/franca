@@ -1,25 +1,38 @@
 import type { Metadata } from "next";
 import PropertyCard from "@/components/public/PropertyCard";
+import LoadMoreProperties from "@/components/public/LoadMoreProperties";
+import TestimonialsCarousel from "@/components/public/TestimonialsCarousel";
 import { Home, ShieldCheck, Star } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getFeaturedReviews } from "@/lib/reviews";
 
 export const metadata: Metadata = {
   title: "Rammies Vacation — Handpicked Vacation Rentals",
 };
 
+const INITIAL_LIMIT = 6;
+
 export default async function HomePage() {
-  const properties = await prisma.property.findMany({
-    select: {
-      id: true,
-      name: true,
-      location: true,
-      nightlyRate: true,
-      coverImageUrl: true,
-      amenities: true,
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const [allProperties, featuredReviews] = await Promise.all([
+    prisma.property.findMany({
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        nightlyRate: true,
+        coverImageUrl: true,
+        amenities: true,
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    getFeaturedReviews(6),
+  ]);
+
+  const total = allProperties.length;
+  const firstProperties = allProperties.slice(0, Math.min(2, total));
+  const remainingInitial = allProperties.slice(2, INITIAL_LIMIT);
+  const hasMore = total > INITIAL_LIMIT;
 
   const PERKS = [
     {
@@ -57,7 +70,7 @@ export default async function HomePage() {
 
         {/* Radial sand glow — bottom right for warmth */}
         <div
-          className="absolute bottom-0 right-0 w-[700px] h-[700px] rounded-full pointer-events-none"
+          className="absolute bottom-0 right-0 w-175 h-175 rounded-full pointer-events-none"
           style={{
             background:
               "radial-gradient(circle, rgba(181,149,106,0.13) 0%, transparent 65%)",
@@ -82,7 +95,7 @@ export default async function HomePage() {
         {/* Hero content */}
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
           <p className="hero-fade-1 text-[11px] uppercase tracking-[0.35em] text-sand mb-6 font-medium">
-            {properties.length} Curated Properties
+            {total} Curated Properties
           </p>
           <h1 className="hero-fade-2 font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold text-white leading-[1.05] tracking-tight mb-6">
             Find Your
@@ -106,7 +119,7 @@ export default async function HomePage() {
           {/* Inline stats */}
           <div className="hero-fade-5 mt-14 flex items-center justify-center">
             {[
-              { value: String(properties.length), label: "Properties" },
+              { value: String(total), label: "Properties" },
               { value: "100%", label: "Private Owned" },
               { value: "5★", label: "Guest Rated" },
             ].map(({ value, label }, i) => (
@@ -161,43 +174,42 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Grid — featured first card when 2+ properties exist */}
-          {properties.length >= 2 ? (
+          {/* Featured first two + initial grid */}
+          {total >= 2 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-6 md:mb-8">
                 <div className="md:col-span-2">
                   <PropertyCard
-                    {...properties[0]}
-                    nightlyRate={Number(properties[0].nightlyRate)}
+                    {...firstProperties[0]}
+                    nightlyRate={Number(firstProperties[0].nightlyRate)}
                     index={0}
                     featured
                   />
                 </div>
                 <div>
                   <PropertyCard
-                    {...properties[1]}
-                    nightlyRate={Number(properties[1].nightlyRate)}
+                    {...firstProperties[1]}
+                    nightlyRate={Number(firstProperties[1].nightlyRate)}
                     index={1}
                   />
                 </div>
               </div>
 
-              {properties.length > 2 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                  {properties.slice(2).map((property, i) => (
-                    <PropertyCard
-                      key={property.id}
-                      {...property}
-                      nightlyRate={Number(property.nightlyRate)}
-                      index={i + 2}
-                    />
-                  ))}
-                </div>
+              {/* Remaining properties with Load More */}
+              {total > 2 && (
+                <LoadMoreProperties
+                  initialProperties={remainingInitial.map((p) => ({
+                    ...p,
+                    nightlyRate: Number(p.nightlyRate),
+                  }))}
+                  total={total}
+                  startIndex={2}
+                />
               )}
             </>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              {properties.map((property, i) => (
+              {allProperties.map((property, i) => (
                 <PropertyCard
                   key={property.id}
                   {...property}
@@ -210,13 +222,40 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Testimonials (only when reviews exist) ────────────── */}
+      {featuredReviews.length > 0 && (
+        <section className="py-20 md:py-24 bg-charcoal">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="mb-10">
+              <p className="text-[11px] uppercase tracking-[0.35em] text-sand font-medium mb-4">
+                Guest Testimonials
+              </p>
+              <h2 className="font-serif text-4xl md:text-5xl font-semibold text-white leading-[1.05] tracking-tight">
+                What Our Guests Say
+              </h2>
+            </div>
+            <TestimonialsCarousel
+              reviews={featuredReviews.map((r) => ({
+                id: r.id,
+                guestName: r.guestName,
+                guestLocation: r.guestLocation ?? null,
+                rating: r.rating,
+                comment: r.comment,
+                reviewDate: r.reviewDate.toISOString(),
+                propertyName: r.property.name,
+              }))}
+            />
+          </div>
+        </section>
+      )}
+
       {/* ── Perks strip ───────────────────────────────────────── */}
       <section className="py-20 md:py-24 bg-cream-dark border-y border-warm-border">
         <div className="max-w-5xl mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-12">
             {PERKS.map(({ icon, title, desc }) => (
               <div key={title} className="flex flex-col gap-4">
-                <div className="w-11 h-11 rounded-xl bg-sand-light flex items-center justify-center text-sand flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-sand-light flex items-center justify-center text-sand shrink-0">
                   {icon}
                 </div>
                 <div>
@@ -245,7 +284,7 @@ export default async function HomePage() {
             }}
             aria-hidden="true"
           >
-            {properties.length}
+            {total}
           </span>
         </div>
 
@@ -259,8 +298,8 @@ export default async function HomePage() {
             <span className="italic font-normal text-sand">your stay?</span>
           </h2>
           <p className="text-white/50 text-sm leading-relaxed mb-10 max-w-sm mx-auto">
-            Browse all {properties.length} properties and secure your dates in
-            minutes. No hidden fees, no surprises.
+            Browse all {total} properties and secure your dates in minutes. No
+            hidden fees, no surprises.
           </p>
           <Link
             href="/#properties"

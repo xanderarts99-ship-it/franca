@@ -4,6 +4,8 @@ import { CalendarDays, TrendingUp, Clock, CheckCircle2, XCircle, Ban } from "luc
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { expireStaleBookings } from "@/lib/bookings";
+import { getPaginationParams, getPaginationMeta, getPrismaSkip } from "@/lib/pagination";
+import PaginationNav from "@/components/shared/PaginationNav";
 import type { BookingStatus } from "@prisma/client";
 
 export const metadata: Metadata = { title: "Bookings — Admin" };
@@ -65,17 +67,19 @@ function StatusBadge({ status }: { status: BookingStatus }) {
 type Tab = "all" | "pending" | "confirmed" | "closed";
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; page?: string; limit?: string }>;
 }
 
 export default async function AdminBookingsPage({ searchParams }: PageProps) {
-  // Clean up stale pending bookings before rendering
   await expireStaleBookings().catch((err) =>
     console.error("expireStaleBookings error:", err)
   );
 
-  const { tab = "all" } = await searchParams;
+  const sp = await searchParams;
+  const { tab = "all" } = sp;
   const activeTab = (["all", "pending", "confirmed", "closed"].includes(tab) ? tab : "all") as Tab;
+
+  const params = getPaginationParams(sp as Record<string, string>, 15);
 
   const statusFilter: BookingStatus[] | undefined =
     activeTab === "pending" ? ["PENDING_PAYMENT"]
@@ -83,12 +87,17 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     : activeTab === "closed" ? ["CANCELLED", "EXPIRED"]
     : undefined;
 
-  const [bookings, pendingCount, confirmedCount] = await Promise.all([
+  const where = statusFilter ? { status: { in: statusFilter } } : {};
+
+  const [bookings, total, pendingCount, confirmedCount] = await Promise.all([
     prisma.booking.findMany({
-      where: statusFilter ? { status: { in: statusFilter } } : {},
+      where,
       include: { property: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
+      skip: getPrismaSkip(params),
+      take: params.limit,
     }),
+    prisma.booking.count({ where }),
     prisma.booking.count({ where: { status: "PENDING_PAYMENT" } }),
     prisma.booking.count({ where: { status: "CONFIRMED" } }),
   ]);
@@ -99,6 +108,10 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
       select: { totalAmount: true },
     })
   ).reduce((s, b) => s + Number(b.totalAmount), 0);
+
+  const pagination = getPaginationMeta(total, params);
+  const showingFrom = total === 0 ? 0 : getPrismaSkip(params) + 1;
+  const showingTo = Math.min(getPrismaSkip(params) + params.limit, total);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "all", label: "All" },
@@ -289,6 +302,15 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
                   </div>
                 </Link>
               ))}
+            </div>
+
+            {/* Pagination */}
+            <div className="px-5 py-4">
+              <PaginationNav
+                pagination={pagination}
+                showingFrom={showingFrom}
+                showingTo={showingTo}
+              />
             </div>
           </>
         )}

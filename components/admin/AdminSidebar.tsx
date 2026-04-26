@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Building2, LogOut, ExternalLink } from "lucide-react";
+import { LayoutDashboard, Building2, Star, LogOut, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/admin",       label: "Bookings",   icon: LayoutDashboard },
+  { href: "/admin",            label: "Bookings",   icon: LayoutDashboard },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
+  { href: "/admin/reviews",    label: "Reviews",    icon: Star },
 ];
 
 export default function AdminSidebar() {

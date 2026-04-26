@@ -3,10 +3,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Pencil, CalendarDays, DollarSign } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getPaginationParams, getPaginationMeta, getPrismaSkip } from "@/lib/pagination";
+import PaginationNav from "@/components/shared/PaginationNav";
 
 export const metadata: Metadata = { title: "Properties — Admin" };
 
-/* One of 10 subtle gradients keyed by index — matches PropertyCard.tsx */
 const GRADIENTS = [
   "linear-gradient(135deg, #0F2945 0%, #1B3A6B 100%)",
   "linear-gradient(135deg, #2D4A3E 0%, #4A7A66 100%)",
@@ -20,19 +21,36 @@ const GRADIENTS = [
   "linear-gradient(135deg, #1A4A3A 0%, #2E8B6B 100%)",
 ];
 
-export default async function AdminPropertiesPage() {
-  const properties = await prisma.property.findMany({
-    select: {
-      id: true,
-      name: true,
-      location: true,
-      nightlyRate: true,
-      amenities: true,
-      images: true,
-      _count: { select: { bookings: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+interface PageProps {
+  searchParams: Promise<{ page?: string; limit?: string }>;
+}
+
+export default async function AdminPropertiesPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const params = getPaginationParams(sp as Record<string, string>, 12);
+
+  const [properties, total] = await Promise.all([
+    prisma.property.findMany({
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        nightlyRate: true,
+        amenities: true,
+        images: true,
+        _count: { select: { bookings: true } },
+      },
+      orderBy: { createdAt: "asc" },
+      skip: getPrismaSkip(params),
+      take: params.limit,
+    }),
+    prisma.property.count(),
+  ]);
+
+  const pagination = getPaginationMeta(total, params);
+  const showingFrom = total === 0 ? 0 : getPrismaSkip(params) + 1;
+  const showingTo = Math.min(getPrismaSkip(params) + params.limit, total);
+  const globalOffset = getPrismaSkip(params);
 
   return (
     <div>
@@ -40,7 +58,7 @@ export default async function AdminPropertiesPage() {
       <div className="mb-7">
         <h1 className="font-serif text-2xl font-semibold text-charcoal">Properties</h1>
         <p className="text-stone text-sm mt-0.5">
-          {properties.length} properties · manage listings, rates, and calendars.
+          {total} properties · manage listings, rates, and calendars.
         </p>
       </div>
 
@@ -49,7 +67,7 @@ export default async function AdminPropertiesPage() {
         {properties.map((property, idx) => (
           <div
             key={property.id}
-            className="bg-white border border-warm-border rounded-[var(--radius-card)] overflow-hidden group"
+            className="bg-white border border-warm-border rounded-card overflow-hidden group"
           >
             {/* Thumbnail */}
             <div className="h-36 w-full relative overflow-hidden">
@@ -64,7 +82,7 @@ export default async function AdminPropertiesPage() {
               ) : (
                 <div
                   className="h-full w-full relative"
-                  style={{ background: GRADIENTS[idx % GRADIENTS.length] }}
+                  style={{ background: GRADIENTS[(globalOffset + idx) % GRADIENTS.length] }}
                 >
                   <div className="absolute inset-0 bg-black/10" />
                   <span className="absolute inset-0 flex items-center justify-center font-serif text-white/20 text-4xl font-semibold select-none">
@@ -110,13 +128,13 @@ export default async function AdminPropertiesPage() {
                 {property.amenities.slice(0, 3).map((a) => (
                   <span
                     key={a}
-                    className="px-2 py-0.5 bg-[#FAFAF7] border border-warm-border rounded-full text-[10px] text-stone font-medium"
+                    className="px-2 py-0.5 bg-cream border border-warm-border rounded-full text-[10px] text-stone font-medium"
                   >
                     {a}
                   </span>
                 ))}
                 {property.amenities.length > 3 && (
-                  <span className="px-2 py-0.5 bg-[#FAFAF7] border border-warm-border rounded-full text-[10px] text-stone-light font-medium">
+                  <span className="px-2 py-0.5 bg-cream border border-warm-border rounded-full text-[10px] text-stone-light font-medium">
                     +{property.amenities.length - 3} more
                   </span>
                 )}
@@ -126,7 +144,7 @@ export default async function AdminPropertiesPage() {
               <div className="flex gap-2 border-t border-warm-border pt-3">
                 <Link
                   href={`/admin/properties/${property.id}/edit`}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full border border-warm-border bg-[#FAFAF7] hover:bg-cream text-xs font-semibold text-charcoal transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full border border-warm-border bg-cream hover:bg-cream text-xs font-semibold text-charcoal transition-all"
                 >
                   <Pencil size={11} />
                   Edit
@@ -143,6 +161,17 @@ export default async function AdminPropertiesPage() {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="mt-6">
+          <PaginationNav
+            pagination={pagination}
+            showingFrom={showingFrom}
+            showingTo={showingTo}
+          />
+        </div>
+      )}
     </div>
   );
 }

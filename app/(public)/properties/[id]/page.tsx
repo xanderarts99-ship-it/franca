@@ -4,8 +4,10 @@ import { ArrowLeft, MapPin, Star, Home, Users, BedDouble, Bed, Bath } from "luci
 import PhotoGrid from "@/components/public/PhotoGrid";
 import BookingWidget from "@/components/public/BookingWidget";
 import PropertyCalendar, { PropertyDateProvider } from "@/components/public/PropertyCalendar";
+import PropertyReviews from "@/components/public/PropertyReviews";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getPropertyReviewStats, getPropertyReviews } from "@/lib/reviews";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -40,22 +42,26 @@ const AMENITY_ICONS: Record<string, string> = {
 export default async function PropertyDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const property = await prisma.property.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      location: true,
-      description: true,
-      nightlyRate: true,
-      guests: true,
-      bedrooms: true,
-      beds: true,
-      bathrooms: true,
-      amenities: true,
-      images: true,
-    },
-  });
+  const [property, reviewStats, { reviews }] = await Promise.all([
+    prisma.property.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        description: true,
+        nightlyRate: true,
+        guests: true,
+        bedrooms: true,
+        beds: true,
+        bathrooms: true,
+        amenities: true,
+        images: true,
+      },
+    }),
+    getPropertyReviewStats(id),
+    getPropertyReviews(id, 1, 20),
+  ]);
 
   if (!property) notFound();
 
@@ -86,8 +92,21 @@ export default async function PropertyDetailPage({ params }: PageProps) {
             </div>
             <div className="flex items-center gap-1 text-sm text-stone bg-surface border border-warm-border rounded-full px-3 py-1.5">
               <Star size={13} className="fill-sand text-sand" />
-              <span className="font-medium text-charcoal">5.0</span>
-              <span className="text-stone-light">· New listing</span>
+              {reviewStats.totalReviews > 0 ? (
+                <>
+                  <span className="font-medium text-charcoal">
+                    {reviewStats.averageRating.toFixed(1)}
+                  </span>
+                  <span className="text-stone-light">
+                    · {reviewStats.totalReviews} review{reviewStats.totalReviews !== 1 ? "s" : ""}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-charcoal">5.0</span>
+                  <span className="text-stone-light">· New listing</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -174,6 +193,20 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                   ))}
                 </div>
               </section>
+
+              {/* Guest Reviews */}
+              <PropertyReviews
+                reviews={reviews.map((r) => ({
+                  id: r.id,
+                  guestName: r.guestName,
+                  guestLocation: r.guestLocation ?? null,
+                  rating: r.rating,
+                  comment: r.comment,
+                  reviewDate: r.reviewDate.toISOString(),
+                }))}
+                averageRating={reviewStats.averageRating}
+                totalReviews={reviewStats.totalReviews}
+              />
 
               {/* Interactive availability calendar */}
               <section className="py-8">

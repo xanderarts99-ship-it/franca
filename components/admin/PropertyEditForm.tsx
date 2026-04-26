@@ -31,7 +31,8 @@ const schema = z.object({
   bathrooms:   z.coerce.number().min(0, "Cannot be negative").max(20, "Max 20"),
 });
 
-type FormData = z.infer<typeof schema>;
+type FormInput = z.input<typeof schema>;
+type FormData = z.output<typeof schema>;
 
 interface Property {
   id: string;
@@ -50,11 +51,82 @@ interface Property {
 const INPUT_BASE =
   "w-full px-4 py-3 text-sm rounded-xl border border-warm-border bg-cream text-charcoal placeholder:text-stone-light/50 focus:outline-none focus:ring-2 focus:ring-sand/40 focus:border-transparent transition-all";
 
-const COMMON_AMENITIES = [
-  "WiFi", "Pool", "Hot Tub", "Parking", "Kitchen", "Air Conditioning",
-  "Washer/Dryer", "BBQ Grill", "Pet-Friendly", "Gym", "Netflix",
-  "Coffee Maker", "Workspace", "Fire Pit", "Balcony", "Ocean View",
+const AMENITY_CATEGORIES: { label: string; items: string[] }[] = [
+  {
+    label: "Essentials",
+    items: [
+      "WiFi", "Air Conditioning", "Heating", "Washer", "Dryer",
+      "Kitchen", "Refrigerator", "Microwave", "Dishwasher",
+      "Coffee Maker", "Toaster", "Cooking Basics (pots/pans)",
+      "Dishes and Silverware", "Iron and Board",
+    ],
+  },
+  {
+    label: "Bathroom",
+    items: [
+      "Hot Water", "Hair Dryer", "Shampoo", "Body Wash",
+      "Towels Provided", "Bathtub",
+    ],
+  },
+  {
+    label: "Bedroom & Laundry",
+    items: [
+      "Bed Linens Provided", "Extra Pillows and Blankets",
+      "Clothing Storage (wardrobe/dresser)", "Hangers",
+      "Blackout Curtains",
+    ],
+  },
+  {
+    label: "Outdoor & Parking",
+    items: [
+      "Free Parking", "Street Parking", "Garage",
+      "Private Pool", "Shared Pool", "Hot Tub",
+      "BBQ Grill", "Patio or Balcony", "Garden",
+      "Outdoor Dining Area", "Fire Pit",
+    ],
+  },
+  {
+    label: "Entertainment",
+    items: [
+      "Smart TV", "Cable TV", "Netflix",
+      "Board Games", "Books",
+      "Bluetooth Speaker",
+    ],
+  },
+  {
+    label: "Safety",
+    items: [
+      "Smoke Detector", "Carbon Monoxide Detector",
+      "Fire Extinguisher", "First Aid Kit",
+      "Security Camera (exterior only)",
+      "Safe (lockbox for valuables)",
+    ],
+  },
+  {
+    label: "Accessibility",
+    items: [
+      "Step-Free Access", "Elevator",
+      "Wide Doorways", "Ground Floor Access",
+    ],
+  },
+  {
+    label: "Family Friendly",
+    items: [
+      "High Chair", "Crib/Pack-n-Play",
+      "Baby Monitor", "Children's Books and Toys",
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      "Dedicated Workspace", "Desk and Chair",
+      "Monitor", "Fast WiFi (100+ Mbps)",
+      "Printer",
+    ],
+  },
 ];
+
+const ALL_AMENITIES = AMENITY_CATEGORIES.flatMap((c) => c.items);
 
 /* ── Field wrapper ──────────────────────────────────────────────────── */
 function Field({
@@ -175,7 +247,7 @@ export default function PropertyEditForm({ property }: { property: Property }) {
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name:        property.name,
@@ -205,7 +277,25 @@ export default function PropertyEditForm({ property }: { property: Property }) {
     }
   }
 
-  const availableSuggestions = COMMON_AMENITIES.filter((s) => !amenities.includes(s));
+  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set(["Essentials"]));
+
+  function toggleCategory(label: string) {
+    setOpenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
+
+  function toggleAmenity(item: string) {
+    setAmenities((prev) =>
+      prev.includes(item) ? prev.filter((a) => a !== item) : [...prev, item]
+    );
+  }
+
+  const knownAmenities = new Set(ALL_AMENITIES);
+  const customAmenities = amenities.filter((a) => !knownAmenities.has(a));
 
   /* ── Upload logic ─────────────────────────────────────────────────── */
   function uploadFiles(files: File[]) {
@@ -471,66 +561,123 @@ export default function PropertyEditForm({ property }: { property: Property }) {
         <SectionHeader
           icon={<Sparkles size={15} />}
           title="Amenities"
-          subtitle="Press Enter or comma to add a tag"
+          subtitle={`${amenities.length} selected · click categories to expand`}
         />
 
-        {/* Tag input */}
-        <div className={cn(
-          "flex flex-wrap gap-2 p-3 rounded-xl border border-warm-border bg-cream min-h-13",
-          "focus-within:ring-2 focus-within:ring-sand/40 focus-within:border-transparent transition-all",
-        )}>
-          {amenities.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-sand/10 border border-sand/20 rounded-full text-xs font-medium text-sand"
-            >
-              <Tag size={9} className="shrink-0" />
-              {tag}
-              <button
-                type="button"
-                onClick={() => setAmenities((p) => p.filter((a) => a !== tag))}
-                className="ml-0.5 text-sand/50 hover:text-sand transition-colors cursor-pointer"
-                aria-label={`Remove ${tag}`}
+        {/* Selected tags summary */}
+        {amenities.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4 pb-4 border-b border-warm-border">
+            {amenities.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sand/10 border border-sand/20 rounded-full text-xs font-medium text-sand"
               >
-                <X size={10} />
-              </button>
-            </span>
-          ))}
-          <input
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={onTagKeyDown}
-            onBlur={addTag}
-            placeholder={amenities.length === 0 ? "WiFi, Pool, Hot Tub…" : ""}
-            className="flex-1 min-w-30 bg-transparent text-sm text-charcoal placeholder:text-stone-light/40 focus:outline-none"
-          />
-        </div>
-
-        {/* Quick-add suggestions */}
-        {availableSuggestions.length > 0 && (
-          <div className="mt-3.5">
-            <p className="text-[10px] uppercase tracking-wider text-stone-light font-medium mb-2">
-              Quick add
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {availableSuggestions.slice(0, 12).map((suggestion) => (
+                <Tag size={9} className="shrink-0" />
+                {tag}
                 <button
-                  key={suggestion}
                   type="button"
-                  onClick={() => {
-                    if (!amenities.includes(suggestion)) {
-                      setAmenities((p) => [...p, suggestion]);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium text-stone border border-warm-border bg-cream hover:border-sand/40 hover:text-sand hover:bg-sand/5 transition-all cursor-pointer"
+                  onClick={() => setAmenities((p) => p.filter((a) => a !== tag))}
+                  className="ml-0.5 text-sand/50 hover:text-sand transition-colors cursor-pointer"
+                  aria-label={`Remove ${tag}`}
                 >
-                  <Plus size={9} />
-                  {suggestion}
+                  <X size={10} />
                 </button>
-              ))}
-            </div>
+              </span>
+            ))}
           </div>
         )}
+
+        {/* Grouped categories */}
+        <div className="space-y-2 mb-4">
+          {AMENITY_CATEGORIES.map(({ label, items }) => {
+            const isOpen = openCategories.has(label);
+            const selectedCount = items.filter((i) => amenities.includes(i)).length;
+            return (
+              <div key={label} className="border border-warm-border rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(label)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-cream hover:bg-[#F0EFE9] transition-colors cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-charcoal">{label}</span>
+                    {selectedCount > 0 && (
+                      <span className="px-1.5 py-0.5 bg-sand/15 text-sand text-[10px] font-bold rounded-full">
+                        {selectedCount}
+                      </span>
+                    )}
+                  </div>
+                  <Plus
+                    size={14}
+                    className={cn(
+                      "text-stone-light transition-transform shrink-0",
+                      isOpen && "rotate-45"
+                    )}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 bg-white">
+                    {items.map((item) => {
+                      const checked = amenities.includes(item);
+                      return (
+                        <label
+                          key={item}
+                          className="flex items-center gap-2.5 cursor-pointer group"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleAmenity(item)}
+                            className="w-4 h-4 rounded border-warm-border text-sand focus:ring-sand/40 cursor-pointer accent-sand"
+                          />
+                          <span className={cn(
+                            "text-sm transition-colors",
+                            checked ? "text-charcoal font-medium" : "text-stone group-hover:text-charcoal"
+                          )}>
+                            {item}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Custom amenity input */}
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-stone-light font-medium mb-2">
+            Custom amenity
+          </p>
+          <div className={cn(
+            "flex gap-2 p-2 rounded-xl border border-warm-border bg-cream",
+            "focus-within:ring-2 focus-within:ring-sand/40 focus-within:border-transparent transition-all",
+          )}>
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={onTagKeyDown}
+              onBlur={addTag}
+              placeholder="Type a custom amenity and press Enter…"
+              className="flex-1 bg-transparent text-sm text-charcoal placeholder:text-stone-light/40 focus:outline-none px-2"
+            />
+            <button
+              type="button"
+              onClick={addTag}
+              className="px-3 py-1.5 rounded-lg bg-sand/10 border border-sand/20 text-sand text-xs font-semibold hover:bg-sand/20 transition-all cursor-pointer shrink-0"
+            >
+              Add
+            </button>
+          </div>
+          {customAmenities.length > 0 && (
+            <p className="text-[11px] text-stone-light mt-1.5">
+              Custom: {customAmenities.join(", ")}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ── Photos ─────────────────────────────────────────────── */}

@@ -40,6 +40,7 @@ model Property {
   blockedDates  BlockedDate[]
   bookings      Booking[]
   icalFeeds     ICalFeed[]
+  reviews       Review[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
@@ -96,4 +97,21 @@ model AdminUser {
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+}
+
+model Review {
+  id            String    @id @default(cuid())
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  guestName     String
+  guestLocation String?
+  rating        Int
+  comment       String
+  reviewDate    DateTime
+  featured      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([propertyId])
+  @@index([featured])
 }
