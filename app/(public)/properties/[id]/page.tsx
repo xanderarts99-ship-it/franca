@@ -5,6 +5,7 @@ import PhotoGrid from "@/components/public/PhotoGrid";
 import BookingWidget from "@/components/public/BookingWidget";
 import PropertyCalendar, { PropertyDateProvider } from "@/components/public/PropertyCalendar";
 import PropertyReviews from "@/components/public/PropertyReviews";
+import PropertyAmenities from "@/components/public/PropertyAmenities";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getPropertyReviewStats, getPropertyReviews } from "@/lib/reviews";
@@ -26,18 +27,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-const AMENITY_ICONS: Record<string, string> = {
-  "WiFi": "📶", "Pool": "🏊", "Private Pool": "🏊", "Hot Tub": "♨️",
-  "Fireplace": "🔥", "Fire Pit": "🔥", "BBQ": "🍖", "Parking": "🚗",
-  "Ocean View": "🌊", "Mountain View": "⛰️", "Beach Access": "🏖️",
-  "Air Conditioning": "❄️", "Full Kitchen": "🍳", "Sauna": "🧖",
-  "Gym": "💪", "Game Room": "🎮", "Home Theatre": "🎬", "Garden": "🌿",
-  "Hammock": "🌴", "Deck": "🪵", "Rooftop": "🏙️", "Ski Access": "⛷️",
-  "Kayaks": "🛶", "Lake Access": "🏞️", "Snorkeling": "🤿",
-  "Bicycle Hire": "🚲", "Outdoor Shower": "🚿", "Porch": "🏡",
-  "Work Desk": "💼", "Smart TV": "📺", "Washer & Dryer": "🧺",
-  "Free Wi-Fi": "📶", "Free Parking": "🚗",
-};
 
 export default async function PropertyDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -175,24 +164,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
               </section>
 
               {/* Amenities */}
-              <section className="py-8 border-b border-warm-border">
-                <h2 className="font-serif text-2xl font-semibold text-charcoal mb-5">
-                  What this place offers
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {property.amenities.map((amenity) => (
-                    <div
-                      key={amenity}
-                      className="flex items-center gap-3 text-sm text-charcoal"
-                    >
-                      <span className="text-base w-6 text-center shrink-0">
-                        {AMENITY_ICONS[amenity] ?? "✓"}
-                      </span>
-                      <span>{amenity}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <PropertyAmenities amenities={property.amenities} />
 
               {/* Guest Reviews */}
               <PropertyReviews
