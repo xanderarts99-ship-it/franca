@@ -18,12 +18,38 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const property = await prisma.property.findUnique({
     where: { id },
-    select: { name: true, location: true, description: true },
+    select: {
+      name: true,
+      description: true,
+      images: true,
+      location: true,
+      guests: true,
+      bedrooms: true,
+      bathrooms: true,
+    },
   });
   if (!property) return { title: "Property Not Found" };
+
+  const title = `${property.name} — Vacation Rental in ${property.location}`;
+  const description = `${property.bedrooms} bed, ${property.bathrooms} bath vacation rental for up to ${property.guests} guests in ${property.location}. ${property.description.slice(0, 120)}...`;
+
   return {
-    title: `${property.name} — ${property.location}`,
-    description: property.description.slice(0, 155),
+    title,
+    description,
+    alternates: { canonical: `/properties/${id}` },
+    openGraph: {
+      title,
+      description,
+      images: property.images[0]
+        ? [{ url: property.images[0], width: 1200, height: 630, alt: property.name }]
+        : [{ url: "/og-image.jpg", width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: property.images[0] ? [property.images[0]] : ["/og-image.jpg"],
+    },
   };
 }
 
@@ -54,8 +80,32 @@ export default async function PropertyDetailPage({ params }: PageProps) {
 
   if (!property) notFound();
 
+  const propertyLd = {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    name: property.name,
+    description: property.description,
+    url: `https://www.rammiesvacation.com/properties/${property.id}`,
+    image: property.images[0] ?? "https://www.rammiesvacation.com/og-image.jpg",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: property.location,
+      addressRegion: "TX",
+      addressCountry: "US",
+    },
+    amenityFeature: property.amenities.map((amenity) => ({
+      "@type": "LocationFeatureSpecification",
+      name: amenity,
+      value: true,
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-cream">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(propertyLd) }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20">
 
         {/* ── Breadcrumb ───────────────────────────────────────── */}

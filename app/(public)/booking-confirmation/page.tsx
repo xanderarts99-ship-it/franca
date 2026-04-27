@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Booking Request Submitted",
+  description: "Your booking request has been received.",
+  robots: { index: false, follow: false },
 };
 
 interface PageProps {

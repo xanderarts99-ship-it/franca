@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Complete Your Booking",
+  description: "Secure your vacation rental reservation with Rammies Vacation Rentals.",
+  robots: { index: false, follow: false },
 };
 
 interface PageProps {

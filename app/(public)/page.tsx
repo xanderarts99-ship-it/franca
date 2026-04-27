@@ -8,7 +8,10 @@ import { prisma } from "@/lib/prisma";
 import { getFeaturedReviews } from "@/lib/reviews";
 
 export const metadata: Metadata = {
-  title: "Rammies Vacation — Handpicked Vacation Rentals",
+  title: "Vacation Rentals in Katy & Fulshear, Texas",
+  description:
+    "Browse all Rammies Vacation Rental properties in Katy and Fulshear, Texas. Family-friendly, pet-friendly, and corporate stays available. Book directly online.",
+  alternates: { canonical: "/" },
 };
 
 const INITIAL_LIMIT = 6;
@@ -52,8 +55,32 @@ export default async function HomePage() {
     },
   ];
 
+  const ldJson = {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    name: "Rammies Vacation Rentals",
+    description: "Premium vacation rental homes in Katy and Fulshear, Texas",
+    url: "https://www.rammiesvacation.com",
+    telephone: "+13464252248",
+    email: "rammiesvacation@gmail.com",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Katy",
+      addressRegion: "TX",
+      addressCountry: "US",
+    },
+    areaServed: ["Katy, TX", "Fulshear, TX", "Houston, TX"],
+    priceRange: "$$",
+    image: "https://www.rammiesvacation.com/og-image.jpg",
+    sameAs: [],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(ldJson) }}
+      />
       {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
         {/* Background gradient */}
@@ -66,7 +93,7 @@ export default async function HomePage() {
         />
 
         {/* Darkening overlay */}
-        <div className="absolute inset-0 bg-black/25" />
+        <div className="absolute inset-0 bg-black/10" />
 
         {/* Radial sand glow — bottom right for warmth */}
         <div
@@ -139,7 +166,7 @@ export default async function HomePage() {
         </div>
 
         {/* Scroll indicator — traveling line */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
+        <div className="absolute bottom-8 right-8 flex flex-col items-center gap-3">
           <span className="text-[9px] uppercase tracking-[0.3em] text-white/30">
             Scroll
           </span>
@@ -224,7 +251,7 @@ export default async function HomePage() {
 
       {/* ── Testimonials (only when reviews exist) ────────────── */}
       {featuredReviews.length > 0 && (
-        <section className="py-20 md:py-24 bg-charcoal">
+        <section className="py-20 md:py-24 bg-[#1B4332]">
           <div className="max-w-7xl mx-auto px-4 md:px-6">
             <div className="mb-10">
               <p className="text-[11px] uppercase tracking-[0.35em] text-sand font-medium mb-4">
@@ -273,14 +300,14 @@ export default async function HomePage() {
       </section>
 
       {/* ── CTA Banner ────────────────────────────────────────── */}
-      <section className="relative bg-charcoal text-white py-24 md:py-32 px-4 overflow-hidden">
+      <section className="relative bg-[#F0F7F4] py-24 md:py-32 px-4 overflow-hidden">
         {/* Decorative large property count */}
         <div className="absolute inset-y-0 right-0 flex items-center pr-4 md:pr-12 pointer-events-none select-none">
           <span
-            className="font-serif font-bold text-white leading-none"
+            className="font-serif font-bold text-[#1B4332] leading-none"
             style={{
               fontSize: "clamp(140px, 22vw, 300px)",
-              opacity: 0.05,
+              opacity: 0.08,
             }}
             aria-hidden="true"
           >
@@ -297,7 +324,7 @@ export default async function HomePage() {
             <br />
             <span className="italic font-normal text-sand">your stay?</span>
           </h2>
-          <p className="text-white/50 text-sm leading-relaxed mb-10 max-w-sm mx-auto">
+          <p className="text-stone text-sm leading-relaxed mb-10 max-w-sm mx-auto">
             Browse all {total} properties and secure your dates in minutes. No
             hidden fees, no surprises.
           </p>
