@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { Star, Loader2, Send, CheckCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
@@ -48,6 +48,20 @@ function StarRating({
 }
 
 export default function ReviewSubmitPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-cream flex items-center justify-center">
+          <Loader2 size={28} className="animate-spin text-sand" />
+        </div>
+      }
+    >
+      <ReviewSubmitContent />
+    </Suspense>
+  );
+}
+
+function ReviewSubmitContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
