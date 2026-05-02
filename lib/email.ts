@@ -4,9 +4,12 @@ import BookingConfirmation from "@/emails/BookingConfirmation";
 import GuestBookingRequestEmail from "@/emails/GuestBookingRequestEmail";
 import AdminNewBookingRequestEmail from "@/emails/AdminNewBookingRequestEmail";
 import GuestBookingRejectedEmail from "@/emails/GuestBookingRejectedEmail";
-import type { Booking, Property } from "@prisma/client";
+import ReviewRequestEmail from "@/emails/ReviewRequestEmail";
+import type { Booking, Property, CancellationPolicy } from "@prisma/client";
 
-type BookingWithProperty = Booking & { property: Property };
+type BookingWithProperty = Booking & {
+  property: Property & { cancellationPolicy?: CancellationPolicy | null };
+};
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString("en-US", {
@@ -34,12 +37,49 @@ function getResend(): { resend: Resend; from: string } | null {
   return { resend: new Resend(apiKey), from };
 }
 
+async function sendEmail(
+  resend: Resend,
+  from: string,
+  emailData: { to: string; subject: string; html: string }
+): Promise<void> {
+  try {
+    const result = await resend.emails.send({ from, ...emailData });
+    if (result.error) {
+      console.error("[EMAIL ERROR]", {
+        type: "resend_api_error",
+        error: result.error,
+        to: emailData.to,
+        subject: emailData.subject,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      console.log("[EMAIL SENT]", {
+        id: result.data?.id,
+        to: emailData.to,
+        subject: emailData.subject,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.error("[EMAIL EXCEPTION]", {
+      error: error instanceof Error ? error.message : error,
+      to: emailData.to,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
 export async function sendBookingConfirmationEmail(
   booking: BookingWithProperty
 ): Promise<void> {
   const client = getResend();
   if (!client) return;
   const { resend, from } = client;
+
+  const nightlyTotal = booking.nightlyTotal ? Number(booking.nightlyTotal) : null;
+  const cleaningFee = booking.cleaningFee ? Number(booking.cleaningFee) : null;
+  const taxRate = booking.taxRate ? Number(booking.taxRate) : null;
+  const taxAmount = booking.taxAmount ? Number(booking.taxAmount) : null;
 
   const html = await render(
     BookingConfirmation({
@@ -48,13 +88,19 @@ export async function sendBookingConfirmationEmail(
       guestName: booking.guestName,
       checkIn: formatDate(booking.checkIn),
       checkOut: formatDate(booking.checkOut),
+      checkInTime: booking.property.checkInTime ?? undefined,
+      checkOutTime: booking.property.checkOutTime ?? undefined,
       totalNights: booking.totalNights,
+      nightlyTotal: nightlyTotal !== null ? formatAmount(nightlyTotal) : null,
+      cleaningFee: cleaningFee !== null ? formatAmount(cleaningFee) : null,
+      taxRate: taxRate !== null ? taxRate : null,
+      taxAmount: taxAmount !== null ? formatAmount(taxAmount) : null,
       totalAmount: formatAmount(Number(booking.totalAmount)),
+      cancellationPolicyText: booking.property.cancellationPolicy?.policyText ?? undefined,
     })
   );
 
-  await resend.emails.send({
-    from,
+  await sendEmail(resend, from, {
     to: booking.guestEmail,
     subject: `Booking Confirmed — ${booking.property.name} | Ref: ${booking.bookingReference}`,
     html,
@@ -79,8 +125,7 @@ export async function sendGuestBookingRequest(booking: BookingWithProperty): Pro
     })
   );
 
-  await resend.emails.send({
-    from,
+  await sendEmail(resend, from, {
     to: booking.guestEmail,
     subject: `Booking Request Received — ${booking.property.name} | Ref: ${booking.bookingReference}`,
     html,
@@ -118,8 +163,7 @@ export async function sendAdminNewBookingRequest(
     })
   );
 
-  await resend.emails.send({
-    from,
+  await sendEmail(resend, from, {
     to: adminEmail,
     subject: `New Booking Request — ${booking.property.name} · ${formatAmount(Number(booking.totalAmount))} | Ref: ${booking.bookingReference}`,
     html,
@@ -142,10 +186,37 @@ export async function sendGuestBookingRejected(booking: BookingWithProperty): Pr
     })
   );
 
-  await resend.emails.send({
-    from,
+  await sendEmail(resend, from, {
     to: booking.guestEmail,
     subject: `Booking Request Update — ${booking.property.name} | Ref: ${booking.bookingReference}`,
+    html,
+  });
+}
+
+export async function sendReviewRequestEmail(
+  booking: BookingWithProperty,
+  reviewToken: string
+): Promise<void> {
+  const client = getResend();
+  if (!client) return;
+  const { resend, from } = client;
+
+  const siteUrl = process.env.NEXTAUTH_URL ?? "https://www.rammiesvacation.com";
+  const reviewUrl = `${siteUrl}/reviews/submit?token=${reviewToken}`;
+
+  const html = await render(
+    ReviewRequestEmail({
+      guestName: booking.guestName,
+      propertyName: booking.property.name,
+      checkIn: formatDate(booking.checkIn),
+      checkOut: formatDate(booking.checkOut),
+      reviewUrl,
+    })
+  );
+
+  await sendEmail(resend, from, {
+    to: booking.guestEmail,
+    subject: `How was your stay at ${booking.property.name}?`,
     html,
   });
 }

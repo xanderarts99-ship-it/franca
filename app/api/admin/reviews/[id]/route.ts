@@ -19,6 +19,8 @@ const patchSchema = z.object({
     }, "Review date cannot be in the future")
     .optional(),
   featured: z.boolean().optional(),
+  approved: z.boolean().optional(),
+  hostResponse: z.string().max(1000).optional().nullable(),
 });
 
 export async function GET(
@@ -58,12 +60,18 @@ export async function PATCH(
     );
   }
 
-  const { reviewDate, ...rest } = parsed.data;
+  const { reviewDate, hostResponse, ...rest } = parsed.data;
   const review = await prisma.review.update({
     where: { id },
     data: {
       ...rest,
       ...(reviewDate ? { reviewDate: new Date(reviewDate) } : {}),
+      ...(hostResponse !== undefined
+        ? {
+            hostResponse: hostResponse || null,
+            hostResponseAt: hostResponse ? new Date() : null,
+          }
+        : {}),
     },
     include: { property: { select: { name: true } } },
   });

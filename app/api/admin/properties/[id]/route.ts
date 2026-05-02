@@ -17,7 +17,7 @@ const schema = z.object({
       "Max 2 decimal places"
     )
     .optional(),
-  amenities: z.array(z.string().max(50)).max(20).optional(),
+  amenities: z.array(z.string().max(200)).max(100).optional(),
   guests: z
     .number()
     .refine((n) => Number.isInteger(Math.round(n)), "Must be a whole number")
@@ -57,6 +57,12 @@ const schema = z.object({
       )
     )
     .optional(),
+  cleaningFee: z.number().min(0).max(1000).optional().nullable(),
+  checkInTime: z.string().max(20).optional().nullable(),
+  checkOutTime: z.string().max(20).optional().nullable(),
+  checkInInstructions: z.string().max(1000).optional().nullable(),
+  checkOutInstructions: z.string().max(1000).optional().nullable(),
+  cancellationPolicyId: z.string().optional().nullable(),
 });
 
 export async function PATCH(

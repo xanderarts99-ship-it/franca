@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { generateBookingReference } from "./booking-ref";
 import { isDateRangeAvailable } from "./availability";
+import { calculateBookingTotal, validateBookingAmount } from "./pricing";
 import {
   sendBookingConfirmationEmail,
   sendGuestBookingRequest,
@@ -55,13 +56,24 @@ interface CreateBookingRequestInput {
   checkIn: Date;
   checkOut: Date;
   totalAmount: number;
+  nightlyTotal?: number;
+  cleaningFee?: number;
+  taxRate?: number;
+  taxAmount?: number;
 }
 
 export async function createBookingRequest(
   data: CreateBookingRequestInput
 ): Promise<Booking> {
-  const { propertyId, guestName, guestEmail, guestPhone, checkIn, checkOut, totalAmount } =
-    data;
+  const {
+    propertyId,
+    guestName,
+    guestEmail,
+    guestPhone,
+    checkIn,
+    checkOut,
+    totalAmount,
+  } = data;
 
   const checkInNorm = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
   const checkOutNorm = new Date(
@@ -90,17 +102,19 @@ export async function createBookingRequest(
   });
   if (conflictCount > 0) throw new BookingConflictError();
 
-  // 3. Verify amount against nightly rate
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    select: { nightlyRate: true, name: true },
-  });
-  if (!property) throw new Error("Property not found");
+  // 3. Verify amount using the pricing library
+  const isValid = await validateBookingAmount(
+    propertyId,
+    checkInNorm,
+    checkOutNorm,
+    totalAmount
+  );
+  if (!isValid) throw new BookingAmountMismatchError();
 
-  const expectedAmount = Number(property.nightlyRate) * totalNights;
-  if (Math.abs(expectedAmount - totalAmount) > 1) throw new BookingAmountMismatchError();
+  // 4. Get full breakdown to store on booking
+  const breakdown = await calculateBookingTotal(propertyId, checkInNorm, checkOutNorm);
 
-  // 4. Create the booking — dates NOT blocked until CONFIRMED
+  // 5. Create the booking — dates NOT blocked until CONFIRMED
   const bookingReference = await generateBookingReference();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -113,17 +127,25 @@ export async function createBookingRequest(
       checkIn: checkInNorm,
       checkOut: checkOutNorm,
       totalNights,
-      totalAmount: expectedAmount,
+      nightlyTotal: breakdown.nightlyTotal,
+      cleaningFee: breakdown.cleaningFee,
+      taxRate: breakdown.taxRate,
+      taxAmount: breakdown.taxAmount,
+      totalAmount: breakdown.totalAmount,
       status: "PENDING_PAYMENT",
       bookingReference,
       expiresAt,
     },
   });
 
-  // 5. Send emails — failures must not roll back the booking
+  // 6. Send emails — failures must not roll back the booking
   const bookingWithProperty = await prisma.booking.findUniqueOrThrow({
     where: { id: booking.id },
-    include: { property: true },
+    include: {
+      property: {
+        include: { cancellationPolicy: true },
+      },
+    },
   });
 
   try {
@@ -199,7 +221,11 @@ export async function confirmBooking(
 
   const updated = await prisma.booking.findUniqueOrThrow({
     where: { id: bookingId },
-    include: { property: true },
+    include: {
+      property: {
+        include: { cancellationPolicy: true },
+      },
+    },
   });
 
   try {
@@ -208,7 +234,7 @@ export async function confirmBooking(
     console.error("Failed to send booking confirmation email:", err);
   }
 
-  return updated;
+  return updated as Booking & { property: Property };
 }
 
 export async function rejectBooking(

@@ -11,6 +11,8 @@ interface Review {
   rating: number;
   comment: string;
   reviewDate: string;
+  hostResponse?: string | null;
+  hostResponseAt?: string | null;
 }
 
 interface Props {
@@ -73,24 +75,40 @@ export default function PropertyReviews({ reviews, averageRating, totalReviews }
         {visible.map((review) => (
           <div
             key={review.id}
-            className="bg-surface border border-warm-border rounded-xl p-4 flex flex-col gap-3"
+            className="bg-surface border border-warm-border rounded-xl overflow-hidden flex flex-col"
           >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-semibold text-charcoal text-sm truncate">{review.guestName}</p>
-                {review.guestLocation && (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin size={10} className="text-stone-light shrink-0" />
-                    <span className="text-xs text-stone-light">{review.guestLocation}</span>
-                  </div>
-                )}
+            <div className="p-4 flex flex-col gap-3 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-charcoal text-sm truncate">{review.guestName}</p>
+                  {review.guestLocation && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin size={10} className="text-stone-light shrink-0" />
+                      <span className="text-xs text-stone-light">{review.guestLocation}</span>
+                    </div>
+                  )}
+                </div>
+                <Stars rating={review.rating} size={12} />
               </div>
-              <Stars rating={review.rating} size={12} />
+
+              <p className="text-sm text-stone leading-relaxed flex-1 wrap-break-word">{review.comment}</p>
+
+              <p className="text-[11px] text-stone-light">{formatReviewDate(review.reviewDate)}</p>
             </div>
 
-            <p className="text-sm text-stone leading-relaxed flex-1 wrap-break-word">{review.comment}</p>
-
-            <p className="text-[11px] text-stone-light">{formatReviewDate(review.reviewDate)}</p>
+            {review.hostResponse && (
+              <div className="bg-[#F0F7F4] border-t border-warm-border px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#1B4332] mb-1">
+                  Response from Francisca
+                  {review.hostResponseAt && (
+                    <span className="font-normal ml-1 opacity-60">
+                      — {formatReviewDate(review.hostResponseAt)}
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-stone leading-relaxed">{review.hostResponse}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>

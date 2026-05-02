@@ -1,10 +1,21 @@
 "use client";
 
-import { useMemo, useContext } from "react";
+import { useMemo, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Users, AlertCircle, X } from "lucide-react";
+import { CalendarDays, Users, AlertCircle, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PropertyDateContext } from "@/components/public/PropertyCalendar";
+
+interface PricingResult {
+  nightlyTotal: number;
+  nightlyBreakdown: { date: string; price: number }[];
+  cleaningFee: number;
+  taxRate: number;
+  taxAmount: number;
+  totalAmount: number;
+  hasCustomPricing: boolean;
+  nights: number;
+}
 
 interface BookingWidgetProps {
   propertyId: string;
@@ -24,31 +35,77 @@ function formatDisplay(str: string): string {
   });
 }
 
-export default function BookingWidget({
-  propertyId,
-  nightlyRate,
-}: BookingWidgetProps) {
+function groupBreakdown(
+  breakdown: { date: string; price: number }[]
+): { price: number; count: number }[] {
+  const groups: { price: number; count: number }[] = [];
+  for (const item of breakdown) {
+    const last = groups[groups.length - 1];
+    if (last && last.price === item.price) {
+      last.count++;
+    } else {
+      groups.push({ price: item.price, count: 1 });
+    }
+  }
+  return groups;
+}
+
+export default function BookingWidget({ propertyId, nightlyRate }: BookingWidgetProps) {
   const router = useRouter();
   const { checkIn, checkOut, clearDates } = useContext(PropertyDateContext);
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
-    const diff =
-      (parseLocal(checkOut).getTime() - parseLocal(checkIn).getTime()) /
-      86400000;
+    const diff = (parseLocal(checkOut).getTime() - parseLocal(checkIn).getTime()) / 86400000;
     return diff > 0 ? Math.round(diff) : 0;
   }, [checkIn, checkOut]);
 
-  const total = useMemo(() => nights * nightlyRate, [nights, nightlyRate]);
+  const [pricing, setPricing] = useState<PricingResult | null>(null);
+  const [loadingPricing, setLoadingPricing] = useState(false);
+  const [pricingError, setPricingError] = useState(false);
+
+  useEffect(() => {
+    if (!checkIn || !checkOut || nights <= 0) {
+      setPricing(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingPricing(true);
+    setPricingError(false);
+
+    fetch(`/api/properties/${propertyId}/pricing?checkIn=${checkIn}&checkOut=${checkOut}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("pricing failed");
+        return res.json() as Promise<PricingResult>;
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setPricing(data);
+          setLoadingPricing(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPricingError(true);
+          setLoadingPricing(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [checkIn, checkOut, nights, propertyId]);
+
+  const displayTotal = pricing?.totalAmount ?? (nights > 0 ? nights * nightlyRate : 0);
 
   function handleBook() {
     if (!checkIn || !checkOut || nights <= 0) return;
+    const total = pricing?.totalAmount ?? nights * nightlyRate;
     router.push(
       `/checkout?propertyId=${propertyId}&checkIn=${checkIn}&checkOut=${checkOut}&totalNights=${nights}&totalAmount=${total}`
     );
   }
 
-  const canBook = checkIn && checkOut && nights > 0;
+  const canBook = checkIn && checkOut && nights > 0 && !loadingPricing;
 
   return (
     <div className="bg-surface border border-warm-border rounded-[var(--radius-card)] shadow-lg p-6 sticky top-24">
@@ -92,7 +149,6 @@ export default function BookingWidget({
             </div>
           </div>
 
-          {/* Clear dates */}
           <button
             type="button"
             onClick={clearDates}
@@ -103,7 +159,6 @@ export default function BookingWidget({
           </button>
         </div>
       ) : (
-        /* Prompt to use calendar */
         <div className="flex items-start gap-2 bg-cream border border-warm-border rounded-lg px-3 py-3 mb-4 text-xs text-stone leading-relaxed">
           <CalendarDays size={13} className="mt-0.5 shrink-0 text-sand" />
           <span>Select your dates on the calendar below to see pricing.</span>
@@ -111,18 +166,72 @@ export default function BookingWidget({
       )}
 
       {/* Price breakdown */}
-      {canBook && (
+      {nights > 0 && (
         <div className="bg-cream rounded-lg px-4 py-3 mb-4 space-y-2 text-sm">
-          <div className="flex justify-between text-stone">
-            <span>
-              ${nightlyRate.toLocaleString()} × {nights} night{nights > 1 ? "s" : ""}
-            </span>
-            <span className="text-charcoal font-medium">${total.toLocaleString()}</span>
-          </div>
-          <div className="border-t border-warm-border pt-2 flex justify-between font-semibold text-charcoal">
-            <span>Total</span>
-            <span>${total.toLocaleString()}</span>
-          </div>
+          {loadingPricing ? (
+            <div className="flex items-center justify-center gap-2 py-2 text-stone">
+              <Loader2 size={13} className="animate-spin" />
+              <span className="text-xs">Calculating…</span>
+            </div>
+          ) : pricingError ? (
+            <>
+              <div className="flex justify-between text-stone">
+                <span>${nightlyRate.toLocaleString()} × {nights} night{nights > 1 ? "s" : ""}</span>
+                <span className="text-charcoal font-medium">${(nights * nightlyRate).toLocaleString()}</span>
+              </div>
+              <div className="border-t border-warm-border pt-2 flex justify-between font-semibold text-charcoal">
+                <span>Total</span>
+                <span>${(nights * nightlyRate).toLocaleString()}</span>
+              </div>
+            </>
+          ) : pricing ? (
+            <>
+              {pricing.hasCustomPricing ? (
+                groupBreakdown(pricing.nightlyBreakdown).map((g, i) => (
+                  <div key={i} className="flex justify-between text-stone">
+                    <span>
+                      ${g.price.toLocaleString()} × {g.count} night{g.count > 1 ? "s" : ""}
+                    </span>
+                    <span className="text-charcoal font-medium">
+                      ${(g.price * g.count).toLocaleString()}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="flex justify-between text-stone">
+                  <span>
+                    ${nightlyRate.toLocaleString()} × {nights} night{nights > 1 ? "s" : ""}
+                  </span>
+                  <span className="text-charcoal font-medium">
+                    ${pricing.nightlyTotal.toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {pricing.cleaningFee > 0 && (
+                <div className="flex justify-between text-stone">
+                  <span>Cleaning fee</span>
+                  <span className="text-charcoal font-medium">
+                    ${pricing.cleaningFee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+
+              {pricing.taxAmount > 0 && (
+                <div className="flex justify-between text-stone">
+                  <span>Tax ({Math.round(pricing.taxRate * 100)}%)</span>
+                  <span className="text-charcoal font-medium">
+                    ${pricing.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+
+              <div className="border-t border-warm-border pt-2 flex justify-between font-semibold text-charcoal">
+                <span>Total</span>
+                <span>${pricing.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </>
+          ) : null}
         </div>
       )}
 
@@ -145,17 +254,20 @@ export default function BookingWidget({
             : "bg-stone-light/30 text-stone-light cursor-not-allowed"
         )}
       >
-        {canBook ? "Book Now" : "Select Dates to Book"}
+        {loadingPricing ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={14} className="animate-spin" />
+            Calculating…
+          </span>
+        ) : canBook ? "Book Now" : "Select Dates to Book"}
       </button>
 
-      {canBook && (
+      {checkIn && checkOut && nights > 0 && (
         <p className="text-center text-xs text-stone mt-3">
-          {formatDisplay(checkIn)} → {formatDisplay(checkOut)} · {nights} night
-          {nights > 1 ? "s" : ""}
+          {formatDisplay(checkIn)} → {formatDisplay(checkOut)} · {nights} night{nights > 1 ? "s" : ""}
         </p>
       )}
 
-      {/* Guarantee note */}
       <div className="mt-4 pt-4 border-t border-warm-border flex items-center justify-center gap-1.5 text-xs text-stone">
         <Users size={12} />
         <span>Secure checkout · No booking fees</span>

@@ -1,5 +1,10 @@
 import Image from "next/image";
-import { CalendarDays, MapPin, Tag } from "lucide-react";
+import { CalendarDays, MapPin } from "lucide-react";
+
+interface NightBreakdown {
+  date: string;
+  price: number;
+}
 
 interface OrderSummaryProps {
   propertyName: string;
@@ -9,7 +14,13 @@ interface OrderSummaryProps {
   checkOut: string;
   nights: number;
   nightlyRate: number;
+  nightlyTotal: number;
+  cleaningFee: number;
+  taxRate: number;
+  taxAmount: number;
   total: number;
+  hasCustomPricing: boolean;
+  nightlyBreakdown: NightBreakdown[];
 }
 
 function formatDate(iso: string) {
@@ -22,6 +33,23 @@ function formatDate(iso: string) {
   });
 }
 
+function fmt(n: number) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function groupBreakdown(breakdown: NightBreakdown[]): { price: number; count: number }[] {
+  const groups: { price: number; count: number }[] = [];
+  for (const item of breakdown) {
+    const last = groups[groups.length - 1];
+    if (last && last.price === item.price) {
+      last.count++;
+    } else {
+      groups.push({ price: item.price, count: 1 });
+    }
+  }
+  return groups;
+}
+
 export default function OrderSummary({
   propertyName,
   location,
@@ -30,10 +58,18 @@ export default function OrderSummary({
   checkOut,
   nights,
   nightlyRate,
+  nightlyTotal,
+  cleaningFee,
+  taxRate,
+  taxAmount,
   total,
+  hasCustomPricing,
+  nightlyBreakdown,
 }: OrderSummaryProps) {
+  const taxPct = Math.round(taxRate * 100);
+
   return (
-    <div className="bg-surface border border-warm-border rounded-[var(--radius-card)] overflow-hidden sticky top-24">
+    <div className="bg-surface border border-warm-border rounded-card overflow-hidden sticky top-24">
       {/* Property image */}
       <div className="relative h-40 w-full">
         {image ? (
@@ -60,28 +96,24 @@ export default function OrderSummary({
           {propertyName}
         </h3>
         <div className="flex items-center gap-1.5 mt-1 mb-4">
-          <MapPin size={12} className="text-stone-light flex-shrink-0" />
+          <MapPin size={12} className="text-stone-light shrink-0" />
           <span className="text-xs text-stone">{location}</span>
         </div>
 
         {/* Dates */}
         <div className="bg-cream rounded-xl p-3.5 mb-4 space-y-2.5">
           <div className="flex items-start gap-2.5">
-            <CalendarDays size={13} className="text-stone-light mt-0.5 flex-shrink-0" />
+            <CalendarDays size={13} className="text-stone-light mt-0.5 shrink-0" />
             <div className="text-xs">
-              <p className="text-stone-light uppercase tracking-wider font-medium mb-0.5">
-                Check-in
-              </p>
+              <p className="text-stone-light uppercase tracking-wider font-medium mb-0.5">Check-in</p>
               <p className="text-charcoal font-medium">{formatDate(checkIn)}</p>
             </div>
           </div>
           <div className="border-t border-warm-border" />
           <div className="flex items-start gap-2.5">
-            <CalendarDays size={13} className="text-stone-light mt-0.5 flex-shrink-0" />
+            <CalendarDays size={13} className="text-stone-light mt-0.5 shrink-0" />
             <div className="text-xs">
-              <p className="text-stone-light uppercase tracking-wider font-medium mb-0.5">
-                Check-out
-              </p>
+              <p className="text-stone-light uppercase tracking-wider font-medium mb-0.5">Check-out</p>
               <p className="text-charcoal font-medium">{formatDate(checkOut)}</p>
             </div>
           </div>
@@ -89,22 +121,33 @@ export default function OrderSummary({
 
         {/* Price breakdown */}
         <div className="space-y-2 text-sm border-t border-warm-border pt-4">
-          <div className="flex justify-between text-stone">
-            <span>
-              ${nightlyRate.toLocaleString()} × {nights} night
-              {nights > 1 ? "s" : ""}
-            </span>
-            <span className="text-charcoal">
-              ${(nightlyRate * nights).toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between text-stone">
-            <div className="flex items-center gap-1.5">
-              <Tag size={11} />
-              Booking fee
+          {hasCustomPricing && nightlyBreakdown.length > 0 ? (
+            groupBreakdown(nightlyBreakdown).map((g, i) => (
+              <div key={i} className="flex justify-between text-stone">
+                <span>${g.price.toLocaleString()} × {g.count} night{g.count > 1 ? "s" : ""}</span>
+                <span className="text-charcoal">${fmt(g.price * g.count)}</span>
+              </div>
+            ))
+          ) : (
+            <div className="flex justify-between text-stone">
+              <span>${nightlyRate.toLocaleString()} × {nights} night{nights > 1 ? "s" : ""}</span>
+              <span className="text-charcoal">${fmt(nightlyTotal)}</span>
             </div>
-            <span className="text-emerald-600 font-medium text-xs">Free</span>
-          </div>
+          )}
+
+          {cleaningFee > 0 && (
+            <div className="flex justify-between text-stone">
+              <span>Cleaning fee</span>
+              <span className="text-charcoal">${fmt(cleaningFee)}</span>
+            </div>
+          )}
+
+          {taxAmount > 0 && (
+            <div className="flex justify-between text-stone">
+              <span>Tax ({taxPct}%)</span>
+              <span className="text-charcoal">${fmt(taxAmount)}</span>
+            </div>
+          )}
         </div>
 
         {/* Total */}
@@ -112,7 +155,7 @@ export default function OrderSummary({
           <span className="font-semibold text-charcoal">Total</span>
           <div className="text-right">
             <span className="font-serif text-2xl font-semibold text-charcoal">
-              ${total.toLocaleString()}
+              ${fmt(total)}
             </span>
             <p className="text-xs text-stone">USD</p>
           </div>

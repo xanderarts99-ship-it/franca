@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import CheckoutForm from "@/components/public/CheckoutForm";
 import OrderSummary from "@/components/public/OrderSummary";
 import { prisma } from "@/lib/prisma";
+import { calculateBookingTotal } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Complete Your Booking",
@@ -28,7 +29,15 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
 
   const property = await prisma.property.findUnique({
     where: { id: propertyId },
-    select: { name: true, location: true, nightlyRate: true, images: true },
+    select: {
+      name: true,
+      location: true,
+      nightlyRate: true,
+      images: true,
+      cancellationPolicy: {
+        select: { name: true, policyText: true },
+      },
+    },
   });
   if (!property) redirect("/");
 
@@ -39,8 +48,32 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   );
   if (nights <= 0) redirect(`/properties/${propertyId}`);
 
-  const nightlyRate = Number(property.nightlyRate);
-  const total = nights * nightlyRate;
+  // Calculate full breakdown from pricing library
+  let breakdown: {
+    nightlyTotal: number;
+    cleaningFee: number;
+    taxRate: number;
+    taxAmount: number;
+    totalAmount: number;
+    hasCustomPricing: boolean;
+    nightlyBreakdown: { date: string; price: number }[];
+  };
+
+  try {
+    breakdown = await calculateBookingTotal(propertyId, checkInDate, checkOutDate);
+  } catch {
+    // Fallback to simple nightly rate calculation
+    const nightlyTotal = Number(property.nightlyRate) * nights;
+    breakdown = {
+      nightlyTotal,
+      cleaningFee: 0,
+      taxRate: 0.06,
+      taxAmount: 0,
+      totalAmount: nightlyTotal,
+      hasCustomPricing: false,
+      nightlyBreakdown: [],
+    };
+  }
 
   return (
     <div className="min-h-screen bg-cream">
@@ -75,8 +108,10 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             checkIn={checkIn}
             checkOut={checkOut}
             nights={nights}
-            nightlyRate={nightlyRate}
-            total={total}
+            nightlyRate={Number(property.nightlyRate)}
+            total={breakdown.totalAmount}
+            cancellationPolicyText={property.cancellationPolicy?.policyText}
+            cancellationPolicyName={property.cancellationPolicy?.name}
           />
 
           {/* Right — Order summary */}
@@ -87,8 +122,14 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             checkIn={checkIn}
             checkOut={checkOut}
             nights={nights}
-            nightlyRate={nightlyRate}
-            total={total}
+            nightlyRate={Number(property.nightlyRate)}
+            nightlyTotal={breakdown.nightlyTotal}
+            cleaningFee={breakdown.cleaningFee}
+            taxRate={breakdown.taxRate}
+            taxAmount={breakdown.taxAmount}
+            total={breakdown.totalAmount}
+            hasCustomPricing={breakdown.hasCustomPricing}
+            nightlyBreakdown={breakdown.nightlyBreakdown}
           />
         </div>
 

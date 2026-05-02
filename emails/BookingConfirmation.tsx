@@ -18,8 +18,15 @@ export interface BookingConfirmationProps {
   guestName: string;
   checkIn: string;
   checkOut: string;
+  checkInTime?: string;
+  checkOutTime?: string;
   totalNights: number;
+  nightlyTotal: string | null;
+  cleaningFee: string | null;
+  taxRate: number | null;
+  taxAmount: string | null;
   totalAmount: string;
+  cancellationPolicyText?: string;
 }
 
 export default function BookingConfirmation({
@@ -28,9 +35,18 @@ export default function BookingConfirmation({
   guestName,
   checkIn,
   checkOut,
+  checkInTime,
+  checkOutTime,
   totalNights,
+  nightlyTotal,
+  cleaningFee,
+  taxRate,
+  taxAmount,
   totalAmount,
+  cancellationPolicyText,
 }: BookingConfirmationProps) {
+  const taxPct = taxRate !== null ? Math.round(taxRate * 100) : null;
+
   return (
     <Html>
       <Head />
@@ -75,28 +91,92 @@ export default function BookingConfirmation({
               <Column style={detailCell}>
                 <Text style={detailLabel}>CHECK-IN</Text>
                 <Text style={detailValue}>{checkIn}</Text>
+                {checkInTime && (
+                  <Text style={detailSub}>From {checkInTime}</Text>
+                )}
               </Column>
               <Column style={detailCell}>
                 <Text style={detailLabel}>CHECK-OUT</Text>
                 <Text style={detailValue}>{checkOut}</Text>
+                {checkOutTime && (
+                  <Text style={detailSub}>By {checkOutTime}</Text>
+                )}
               </Column>
             </Row>
             <Hr style={innerDivider} />
-            <Row>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>DURATION</Text>
-                <Text style={detailValue}>
-                  {totalNights} night{totalNights > 1 ? "s" : ""}
-                </Text>
-              </Column>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>TOTAL CHARGED</Text>
-                <Text style={{ ...detailValue, color: "#1B3A6B", fontWeight: "700" }}>
-                  {totalAmount}
-                </Text>
-              </Column>
-            </Row>
+
+            {/* Price breakdown */}
+            {nightlyTotal !== null ? (
+              <>
+                <Row>
+                  <Column style={detailCell}>
+                    <Text style={detailLabel}>DURATION</Text>
+                    <Text style={detailValue}>
+                      {totalNights} night{totalNights > 1 ? "s" : ""}
+                    </Text>
+                  </Column>
+                  <Column style={detailCell}>
+                    <Text style={detailLabel}>NIGHTLY TOTAL</Text>
+                    <Text style={detailValue}>{nightlyTotal}</Text>
+                  </Column>
+                </Row>
+                {(cleaningFee !== null || taxAmount !== null) && (
+                  <>
+                    <Hr style={innerDivider} />
+                    <Row>
+                      {cleaningFee !== null && (
+                        <Column style={detailCell}>
+                          <Text style={detailLabel}>CLEANING FEE</Text>
+                          <Text style={detailValue}>{cleaningFee}</Text>
+                        </Column>
+                      )}
+                      {taxAmount !== null && taxPct !== null && (
+                        <Column style={detailCell}>
+                          <Text style={detailLabel}>TAX ({taxPct}%)</Text>
+                          <Text style={detailValue}>{taxAmount}</Text>
+                        </Column>
+                      )}
+                    </Row>
+                  </>
+                )}
+                <Hr style={innerDivider} />
+                <Row>
+                  <Column style={detailCell}>
+                    <Text style={detailLabel}>TOTAL CHARGED</Text>
+                    <Text style={{ ...detailValue, color: "#1B3A6B", fontWeight: "700" }}>
+                      {totalAmount}
+                    </Text>
+                  </Column>
+                </Row>
+              </>
+            ) : (
+              <Row>
+                <Column style={detailCell}>
+                  <Text style={detailLabel}>DURATION</Text>
+                  <Text style={detailValue}>
+                    {totalNights} night{totalNights > 1 ? "s" : ""}
+                  </Text>
+                </Column>
+                <Column style={detailCell}>
+                  <Text style={detailLabel}>TOTAL CHARGED</Text>
+                  <Text style={{ ...detailValue, color: "#1B3A6B", fontWeight: "700" }}>
+                    {totalAmount}
+                  </Text>
+                </Column>
+              </Row>
+            )}
           </Section>
+
+          {/* Cancellation policy */}
+          {cancellationPolicyText && (
+            <>
+              <Hr style={divider} />
+              <Section style={contentSection}>
+                <Text style={sectionTitle}>Cancellation Policy</Text>
+                <Text style={paragraph}>{cancellationPolicyText}</Text>
+              </Section>
+            </>
+          )}
 
           <Hr style={divider} />
 
@@ -190,6 +270,15 @@ const h1: React.CSSProperties = {
   margin: "0 0 12px",
 };
 
+const sectionTitle: React.CSSProperties = {
+  color: "#1C1917",
+  fontSize: "14px",
+  fontWeight: "700",
+  margin: "0 0 8px",
+  fontFamily: "sans-serif",
+  letterSpacing: "0.02em",
+};
+
 const paragraph: React.CSSProperties = {
   color: "#57534E",
   fontSize: "15px",
@@ -203,15 +292,6 @@ const detailsBox: React.CSSProperties = {
   borderRadius: "8px",
   margin: "0 40px",
   padding: "20px 24px",
-};
-
-const detailsTitle: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "13px",
-  fontWeight: "700",
-  margin: "0 0 16px",
-  fontFamily: "sans-serif",
-  letterSpacing: "0.02em",
 };
 
 const detailCell: React.CSSProperties = {
@@ -233,6 +313,13 @@ const detailValue: React.CSSProperties = {
   fontSize: "14px",
   fontWeight: "600",
   margin: "0",
+  fontFamily: "sans-serif",
+};
+
+const detailSub: React.CSSProperties = {
+  color: "#9B8E80",
+  fontSize: "11px",
+  margin: "2px 0 0",
   fontFamily: "sans-serif",
 };
 

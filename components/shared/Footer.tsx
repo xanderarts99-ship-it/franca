@@ -18,7 +18,7 @@ export default function Footer() {
                 alt="Rammies Vacation Rentals"
                 width={56}
                 height={56}
-                className="h-14 w-14 object-contain"
+                className="h-16 w-16 object-contain"
               />
             </Link>
             <p className="mt-3 text-sm font-semibold" style={{ color: "#C9A84C" }}>

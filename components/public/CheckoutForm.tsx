@@ -14,6 +14,7 @@ import {
   Send,
   ShieldCheck,
   Clock,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,8 @@ interface CheckoutFormProps {
   nights: number;
   nightlyRate: number;
   total: number;
+  cancellationPolicyText?: string | null;
+  cancellationPolicyName?: string | null;
 }
 
 function InputField({
@@ -83,10 +86,16 @@ export default function CheckoutForm({
   checkIn,
   checkOut,
   total,
+  cancellationPolicyText,
+  cancellationPolicyName,
 }: CheckoutFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [policyAgreed, setPolicyAgreed] = useState(false);
+  const [policyExpanded, setPolicyExpanded] = useState(false);
+
+  const hasCancellationPolicy = Boolean(cancellationPolicyText);
 
   const {
     register,
@@ -95,6 +104,11 @@ export default function CheckoutForm({
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   async function onSubmit(data: FormData) {
+    if (hasCancellationPolicy && !policyAgreed) {
+      setServerError("Please agree to the cancellation policy to continue.");
+      return;
+    }
+
     setSubmitting(true);
     setServerError("");
 
@@ -110,6 +124,7 @@ export default function CheckoutForm({
           guestName: data.guestName,
           guestEmail: data.guestEmail,
           guestPhone: data.guestPhone,
+          cancellationPolicyAgreed: policyAgreed,
         }),
       });
 
@@ -181,6 +196,52 @@ export default function CheckoutForm({
         </div>
       </section>
 
+      {/* ── Cancellation policy agreement ─────────────────── */}
+      {hasCancellationPolicy && (
+        <section className="bg-surface border border-warm-border rounded-card p-6 mb-4">
+          <h2 className="font-serif text-xl font-semibold text-charcoal mb-4">
+            Cancellation Policy
+          </h2>
+
+          {cancellationPolicyName && (
+            <p className="text-sm font-semibold text-charcoal mb-2">{cancellationPolicyName}</p>
+          )}
+
+          {/* Collapsible policy text */}
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={() => setPolicyExpanded((v) => !v)}
+              className="flex items-center gap-2 text-sm text-sand hover:text-sand-dark transition-colors cursor-pointer"
+            >
+              <ChevronDown
+                size={14}
+                className={cn("transition-transform", policyExpanded && "rotate-180")}
+              />
+              {policyExpanded ? "Hide policy" : "Read full policy"}
+            </button>
+            {policyExpanded && (
+              <p className="mt-3 text-sm text-stone leading-relaxed bg-cream border border-warm-border rounded-xl px-4 py-3">
+                {cancellationPolicyText}
+              </p>
+            )}
+          </div>
+
+          {/* Agreement checkbox */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={policyAgreed}
+              onChange={(e) => setPolicyAgreed(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-warm-border accent-sand cursor-pointer shrink-0"
+            />
+            <span className="text-sm text-stone leading-relaxed group-hover:text-charcoal transition-colors">
+              I have read and agree to the cancellation policy for this property
+            </span>
+          </label>
+        </section>
+      )}
+
       {/* ── How payment works ────────────────────────────── */}
       <section className="bg-surface border border-warm-border rounded-card p-6 mb-4">
         <h2 className="font-serif text-xl font-semibold text-charcoal mb-4">
@@ -233,7 +294,7 @@ export default function CheckoutForm({
       {/* ── Submit ────────────────────────────────────────── */}
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || (hasCancellationPolicy && !policyAgreed)}
         className="w-full py-4 rounded-full bg-sand hover:bg-sand-dark text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:shadow-sand/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {submitting ? (

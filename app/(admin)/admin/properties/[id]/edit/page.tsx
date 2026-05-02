@@ -14,22 +14,34 @@ interface PageProps {
 export default async function PropertyEditPage({ params }: PageProps) {
   const { id } = await params;
 
-  const property = await prisma.property.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      location: true,
-      description: true,
-      nightlyRate: true,
-      guests: true,
-      bedrooms: true,
-      beds: true,
-      bathrooms: true,
-      amenities: true,
-      images: true,
-    },
-  });
+  const [property, cancellationPolicies] = await Promise.all([
+    prisma.property.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        description: true,
+        nightlyRate: true,
+        cleaningFee: true,
+        guests: true,
+        bedrooms: true,
+        beds: true,
+        bathrooms: true,
+        amenities: true,
+        images: true,
+        checkInTime: true,
+        checkOutTime: true,
+        checkInInstructions: true,
+        checkOutInstructions: true,
+        cancellationPolicyId: true,
+      },
+    }),
+    prisma.cancellationPolicy.findMany({
+      select: { id: true, name: true, policyText: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   if (!property) notFound();
 
@@ -53,7 +65,14 @@ export default async function PropertyEditPage({ params }: PageProps) {
         <p className="text-stone text-sm mt-1">{property.location}</p>
       </div>
 
-      <PropertyEditForm property={{ ...property, nightlyRate: Number(property.nightlyRate) }} />
+      <PropertyEditForm
+        property={{
+          ...property,
+          nightlyRate: Number(property.nightlyRate),
+          cleaningFee: property.cleaningFee !== null ? Number(property.cleaningFee) : null,
+        }}
+        cancellationPolicies={cancellationPolicies}
+      />
     </div>
   );
 }

@@ -24,25 +24,62 @@ enum BlockedReason {
 
 // ── Models ─────────────────────────────────────────────────────────
 
+model CancellationPolicy {
+  id                      String     @id @default(cuid())
+  name                    String
+  description             String
+  fullRefundDays          Int
+  partialRefundDays       Int?
+  partialRefundPercentage Int?
+  policyText              String
+  isDefault               Boolean    @default(false)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  properties              Property[]
+}
+
 model Property {
-  id            String        @id @default(cuid())
-  name          String
-  description   String
-  location      String
-  nightlyRate   Decimal
-  guests        Int           @default(6)
-  bedrooms      Int           @default(3)
-  beds          Int           @default(4)
-  bathrooms     Int           @default(2)
-  amenities     String[]
-  coverImageUrl String        @default("")
-  images        String[]
-  blockedDates  BlockedDate[]
-  bookings      Booking[]
-  icalFeeds     ICalFeed[]
-  reviews       Review[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                   String              @id @default(cuid())
+  name                 String
+  description          String
+  location             String
+  nightlyRate          Decimal
+  guests               Int                 @default(6)
+  bedrooms             Int                 @default(3)
+  beds                 Int                 @default(4)
+  bathrooms            Int                 @default(2)
+  amenities            String[]
+  coverImageUrl        String              @default("")
+  images               String[]
+  cleaningFee          Decimal?            @db.Decimal(10, 2)
+  checkInTime          String?
+  checkOutTime         String?
+  checkInInstructions  String?
+  checkOutInstructions String?
+  taxRate              Decimal             @default(0.06) @db.Decimal(5, 4)
+  cancellationPolicyId String?
+  cancellationPolicy   CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id])
+  blockedDates         BlockedDate[]
+  bookings             Booking[]
+  icalFeeds            ICalFeed[]
+  reviews              Review[]
+  pricing              PropertyPricing[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+}
+
+model PropertyPricing {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  price      Decimal  @db.Decimal(10, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([propertyId, date])
+  @@index([propertyId])
+  @@index([date])
 }
 
 model Booking {
@@ -55,6 +92,10 @@ model Booking {
   checkIn               DateTime
   checkOut              DateTime
   totalNights           Int
+  nightlyTotal          Decimal?      @db.Decimal(10, 2)
+  cleaningFee           Decimal?      @db.Decimal(10, 2)
+  taxRate               Decimal?      @db.Decimal(5, 4)
+  taxAmount             Decimal?      @db.Decimal(10, 2)
   totalAmount           Decimal
   status                BookingStatus @default(PENDING_PAYMENT)
   stripePaymentIntentId String?       @unique
@@ -63,6 +104,8 @@ model Booking {
   rejectedAt            DateTime?
   rejectionReason       String?
   paymentNotes          String?
+  reviewToken           String?       @unique
+  reviewSubmittedAt     DateTime?
   blockedDates          BlockedDate[]
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
@@ -100,17 +143,22 @@ model AdminUser {
 }
 
 model Review {
-  id            String    @id @default(cuid())
-  propertyId    String
-  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  guestName     String
-  guestLocation String?
-  rating        Int
-  comment       String
-  reviewDate    DateTime
-  featured      Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  propertyId          String
+  property            Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  guestName           String
+  guestLocation       String?
+  rating              Int
+  comment             String
+  reviewDate          DateTime
+  featured            Boolean   @default(false)
+  approved            Boolean   @default(false)
+  hostResponse        String?
+  hostResponseAt      DateTime?
+  reviewToken         String?   @unique
+  reviewRequestSentAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([propertyId])
   @@index([featured])

@@ -34,7 +34,7 @@ export default function Navbar() {
               alt="Rammies Vacation Rentals"
               width={48}
               height={48}
-              className="h-10 w-10 md:h-12 md:w-12 object-contain"
+              className="h-11 w-11 md:h-13 md:w-13 object-contain"
               priority
             />
           </Link>

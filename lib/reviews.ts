@@ -9,7 +9,7 @@ export async function getPropertyReviewStats(
   propertyId: string
 ): Promise<{ averageRating: number; totalReviews: number }> {
   const result = await prisma.review.aggregate({
-    where: { propertyId },
+    where: { propertyId, approved: true },
     _avg: { rating: true },
     _count: { id: true },
   });
@@ -21,7 +21,7 @@ export async function getPropertyReviewStats(
 
 export async function getFeaturedReviews(limit = 6): Promise<ReviewWithProperty[]> {
   return prisma.review.findMany({
-    where: { featured: true },
+    where: { featured: true, approved: true },
     orderBy: { reviewDate: "desc" },
     take: limit,
     include: { property: { select: { name: true } } },
@@ -36,12 +36,12 @@ export async function getPropertyReviews(
   const skip = (page - 1) * limit;
   const [reviews, total] = await Promise.all([
     prisma.review.findMany({
-      where: { propertyId },
+      where: { propertyId, approved: true },
       orderBy: { reviewDate: "desc" },
       skip,
       take: limit,
     }),
-    prisma.review.count({ where: { propertyId } }),
+    prisma.review.count({ where: { propertyId, approved: true } }),
   ]);
   return { reviews, total };
 }

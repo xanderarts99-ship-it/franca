@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   Tag, X, Loader2, AlertCircle, ImagePlus, Trash2,
   FileText, Users, Sparkles, Camera, Save, GripVertical, Plus,
+  DollarSign, Clock, ShieldAlert, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -25,10 +26,18 @@ const schema = z.object({
   location:    z.string().min(2, "Location is required").max(200),
   description: z.string().min(20, "Description must be at least 20 characters").max(2000),
   nightlyRate: z.coerce.number().positive("Rate must be a positive number"),
+  cleaningFee: z.union([
+    z.literal("").transform(() => null),
+    z.coerce.number().min(0, "Cannot be negative").max(1000, "Max $1,000"),
+  ]).optional().nullable(),
   guests:      z.coerce.number().min(1, "At least 1 guest").max(20, "Max 20"),
   bedrooms:    z.coerce.number().min(0, "Cannot be negative").max(20, "Max 20"),
   beds:        z.coerce.number().min(1, "At least 1 bed").max(30, "Max 30"),
   bathrooms:   z.coerce.number().min(0, "Cannot be negative").max(20, "Max 20"),
+  checkInTime:           z.string().max(20).optional().nullable(),
+  checkOutTime:          z.string().max(20).optional().nullable(),
+  checkInInstructions:   z.string().max(1000, "Max 1000 characters").optional().nullable(),
+  checkOutInstructions:  z.string().max(1000, "Max 1000 characters").optional().nullable(),
 });
 
 type FormInput = z.input<typeof schema>;
@@ -40,12 +49,24 @@ interface Property {
   location: string;
   description: string;
   nightlyRate: number;
+  cleaningFee: number | null;
   guests: number;
   bedrooms: number;
   beds: number;
   bathrooms: number;
   amenities: string[];
   images: string[];
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  checkInInstructions: string | null;
+  checkOutInstructions: string | null;
+  cancellationPolicyId: string | null;
+}
+
+interface CancellationPolicy {
+  id: string;
+  name: string;
+  policyText: string;
 }
 
 const INPUT_BASE =
@@ -233,7 +254,13 @@ function SortableImageItem({
 }
 
 /* ── Main form ──────────────────────────────────────────────────────── */
-export default function PropertyEditForm({ property }: { property: Property }) {
+export default function PropertyEditForm({
+  property,
+  cancellationPolicies,
+}: {
+  property: Property;
+  cancellationPolicies: CancellationPolicy[];
+}) {
   const router = useRouter();
 
   const [amenities, setAmenities] = useState<string[]>(property.amenities);
@@ -245,21 +272,33 @@ export default function PropertyEditForm({ property }: { property: Property }) {
   const [dragOver, setDragOver]           = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  const [cancellationPolicyId, setCancellationPolicyId] = useState<string>(
+    property.cancellationPolicyId ?? ""
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormInput, unknown, FormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name:        property.name,
-      location:    property.location,
-      description: property.description,
-      nightlyRate: property.nightlyRate,
-      guests:      property.guests,
-      bedrooms:    property.bedrooms,
-      beds:        property.beds,
-      bathrooms:   property.bathrooms,
+      name:                 property.name,
+      location:             property.location,
+      description:          property.description,
+      nightlyRate:          property.nightlyRate,
+      cleaningFee:          property.cleaningFee ?? "",
+      guests:               property.guests,
+      bedrooms:             property.bedrooms,
+      beds:                 property.beds,
+      bathrooms:            property.bathrooms,
+      checkInTime:          property.checkInTime ?? "",
+      checkOutTime:         property.checkOutTime ?? "",
+      checkInInstructions:  property.checkInInstructions ?? "",
+      checkOutInstructions: property.checkOutInstructions ?? "",
     },
   });
+
+  const checkInInstructionsVal  = watch("checkInInstructions") ?? "";
+  const checkOutInstructionsVal = watch("checkOutInstructions") ?? "";
+  const selectedPolicy = cancellationPolicies.find((p) => p.id === cancellationPolicyId);
 
   /* ── Amenity helpers ──────────────────────────────────────────────── */
   function addTag() {
@@ -412,10 +451,21 @@ export default function PropertyEditForm({ property }: { property: Property }) {
   async function onSubmit(data: FormData) {
     setSubmitting(true);
     try {
+      const body = {
+        ...data,
+        amenities,
+        images,
+        cleaningFee:          data.cleaningFee ?? null,
+        checkInTime:          (data.checkInTime as string || null),
+        checkOutTime:         (data.checkOutTime as string || null),
+        checkInInstructions:  (data.checkInInstructions as string || null),
+        checkOutInstructions: (data.checkOutInstructions as string || null),
+        cancellationPolicyId: cancellationPolicyId || null,
+      };
       const res = await fetch(`/api/admin/properties/${property.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, amenities, images }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -500,6 +550,30 @@ export default function PropertyEditForm({ property }: { property: Property }) {
         </div>
       </div>
 
+      {/* ── Fees ──────────────────────────────────────────────── */}
+      <div className="bg-white border border-warm-border rounded-card p-6">
+        <SectionHeader
+          icon={<DollarSign size={15} />}
+          title="Fees"
+          subtitle="Additional charges applied to each booking"
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Cleaning fee (USD)" error={errors.cleaningFee?.message}>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-light text-sm pointer-events-none">$</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="0 (no cleaning fee)"
+                {...register("cleaningFee")}
+                className={cn(INPUT_BASE, "pl-7", errors.cleaningFee && "border-red-300 focus:ring-red-300")}
+              />
+            </div>
+          </Field>
+        </div>
+      </div>
+
       {/* ── Capacity ───────────────────────────────────────────── */}
       <div className="bg-white border border-warm-border rounded-card p-6">
         <SectionHeader
@@ -553,6 +627,110 @@ export default function PropertyEditForm({ property }: { property: Property }) {
               )}
             />
           </Field>
+        </div>
+      </div>
+
+      {/* ── Check-in & Check-out ───────────────────────────────── */}
+      <div className="bg-white border border-warm-border rounded-card p-6">
+        <SectionHeader
+          icon={<Clock size={15} />}
+          title="Check-in & Check-out"
+          subtitle="Times and arrival instructions for guests"
+        />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Check-in time" error={errors.checkInTime?.message}>
+              <input
+                type="text"
+                placeholder="e.g. 3:00 PM"
+                {...register("checkInTime")}
+                className={cn(INPUT_BASE, errors.checkInTime && "border-red-300 focus:ring-red-300")}
+              />
+            </Field>
+            <Field label="Check-out time" error={errors.checkOutTime?.message}>
+              <input
+                type="text"
+                placeholder="e.g. 11:00 AM"
+                {...register("checkOutTime")}
+                className={cn(INPUT_BASE, errors.checkOutTime && "border-red-300 focus:ring-red-300")}
+              />
+            </Field>
+          </div>
+
+          <Field label="Check-in instructions" error={errors.checkInInstructions?.message}>
+            <div className="relative">
+              <textarea
+                rows={4}
+                placeholder="Door code, parking notes, key pickup location…"
+                {...register("checkInInstructions")}
+                className={cn(
+                  INPUT_BASE, "resize-none leading-relaxed pb-7",
+                  errors.checkInInstructions && "border-red-300 focus:ring-red-300"
+                )}
+              />
+              <span className={cn(
+                "absolute bottom-2.5 right-3 text-[10px]",
+                (checkInInstructionsVal?.length ?? 0) > 950 ? "text-amber-500" : "text-stone-light"
+              )}>
+                {(checkInInstructionsVal?.length ?? 0)}/1000
+              </span>
+            </div>
+          </Field>
+
+          <Field label="Check-out instructions" error={errors.checkOutInstructions?.message}>
+            <div className="relative">
+              <textarea
+                rows={4}
+                placeholder="Key return, trash disposal, lock-up procedure…"
+                {...register("checkOutInstructions")}
+                className={cn(
+                  INPUT_BASE, "resize-none leading-relaxed pb-7",
+                  errors.checkOutInstructions && "border-red-300 focus:ring-red-300"
+                )}
+              />
+              <span className={cn(
+                "absolute bottom-2.5 right-3 text-[10px]",
+                (checkOutInstructionsVal?.length ?? 0) > 950 ? "text-amber-500" : "text-stone-light"
+              )}>
+                {(checkOutInstructionsVal?.length ?? 0)}/1000
+              </span>
+            </div>
+          </Field>
+        </div>
+      </div>
+
+      {/* ── Cancellation Policy ─────────────────────────────────── */}
+      <div className="bg-white border border-warm-border rounded-card p-6">
+        <SectionHeader
+          icon={<ShieldAlert size={15} />}
+          title="Cancellation Policy"
+          subtitle="Policy shown to guests at checkout"
+        />
+        <div className="space-y-3">
+          <div className="relative">
+            <select
+              value={cancellationPolicyId}
+              onChange={(e) => setCancellationPolicyId(e.target.value)}
+              className={cn(INPUT_BASE, "appearance-none pr-8 cursor-pointer")}
+            >
+              <option value="">No cancellation policy</option>
+              {cancellationPolicies.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-light pointer-events-none"
+            />
+          </div>
+          {selectedPolicy && (
+            <div className="bg-cream border border-warm-border rounded-xl px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-light mb-1.5">
+                Policy preview
+              </p>
+              <p className="text-xs text-stone leading-relaxed">{selectedPolicy.policyText}</p>
+            </div>
+          )}
         </div>
       </div>
 
