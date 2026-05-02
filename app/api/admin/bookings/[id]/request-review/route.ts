@@ -41,7 +41,12 @@ export async function POST(
     include: { property: { include: { cancellationPolicy: true } } },
   });
 
-  await sendReviewRequestEmail(updated, reviewToken);
+  try {
+    await sendReviewRequestEmail(updated, reviewToken);
+  } catch (err) {
+    console.error("sendReviewRequestEmail error:", err);
+    return NextResponse.json({ error: "Failed to send review email" }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, reviewToken });
 }

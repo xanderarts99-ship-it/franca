@@ -32,9 +32,9 @@ export default function Navbar() {
             <Image
               src="/logo-transparent.png"
               alt="Rammies Vacation Rentals"
-              width={48}
-              height={48}
-              className="h-11 w-11 md:h-13 md:w-13 object-contain"
+              width={80}
+              height={80}
+              className="h-16 w-16 md:h-20 md:w-20 object-contain"
               priority
             />
           </Link>

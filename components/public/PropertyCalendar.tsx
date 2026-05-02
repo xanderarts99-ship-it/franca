@@ -86,6 +86,8 @@ interface MonthGridProps {
   year: number;
   month: number;
   blockedSet: Set<string>;
+  pricingMap: Map<string, number>;
+  baseRate: number;
   today: string;
   checkIn: string;
   checkOut: string;
@@ -98,7 +100,7 @@ interface MonthGridProps {
 }
 
 function MonthGrid({
-  year, month, blockedSet, today,
+  year, month, blockedSet, pricingMap, baseRate, today,
   checkIn, checkOut, hovered, checkoutLimit,
   onDayClick, onDayHover, onMouseLeave,
 }: MonthGridProps) {
@@ -138,12 +140,13 @@ function MonthGrid({
           const isCheckIn = key === checkIn;
           const isCheckOut = key === checkOut;
           const isToday = key === today;
+          const dayPrice = pricingMap.get(key) ?? baseRate;
+          const isCustomPrice = pricingMap.has(key);
 
           // Is this day selectable?
           const isDisabled =
             isPast ||
             isBlocked ||
-            // If we're picking checkout, anything on/after the first blocked date is off-limits
             !!(checkIn && !checkOut && checkoutLimit !== null && key >= checkoutLimit);
 
           // Is this day inside the highlighted range?
@@ -160,13 +163,10 @@ function MonthGrid({
             <div
               key={key}
               className={cn(
-                "relative flex items-center justify-center h-9",
-                // Range strip background (full cell width)
+                "relative flex items-center justify-center",
                 isInRange && "bg-sand/10",
-                // Strip connects to left for end point
-                isCheckOut && checkIn && "bg-gradient-to-r from-sand/10 to-transparent",
-                // Strip connects to right for start point
-                isCheckIn && rangeEnd && rangeEnd > checkIn && "bg-gradient-to-l from-sand/10 to-transparent",
+                isCheckOut && checkIn && "bg-linear-to-r from-sand/10 to-transparent",
+                isCheckIn && rangeEnd && rangeEnd > checkIn && "bg-linear-to-l from-sand/10 to-transparent",
               )}
             >
               <button
@@ -175,19 +175,23 @@ function MonthGrid({
                 onClick={() => !isDisabled && onDayClick(key)}
                 onMouseEnter={() => !isDisabled && onDayHover(key)}
                 className={cn(
-                  "relative z-10 w-8 h-8 text-xs rounded-full flex items-center justify-center transition-colors select-none",
-                  // Disabled
-                  isDisabled && "text-stone-light/40 cursor-not-allowed",
+                  "relative z-10 w-full flex flex-col items-center justify-center py-1.5 gap-0.5 rounded-lg transition-colors select-none",
+                  isDisabled && "opacity-30 cursor-not-allowed",
                   isBlocked && !isPast && "line-through",
-                  // Endpoint (check-in / check-out)
                   isEndpoint && "bg-sand text-white font-semibold",
-                  // Today ring (when not an endpoint)
                   isToday && !isEndpoint && "ring-1 ring-sand font-semibold text-charcoal",
-                  // Normal available
-                  !isDisabled && !isEndpoint && "text-charcoal hover:bg-sand/20 cursor-pointer",
+                  !isDisabled && !isEndpoint && "text-charcoal hover:bg-sand/15 cursor-pointer",
                 )}
               >
-                {day}
+                <span className="text-xs leading-none">{day}</span>
+                {!isBlocked && !isPast && (
+                  <span className={cn(
+                    "text-[9px] leading-none font-medium",
+                    isEndpoint ? "text-white/80" : isCustomPrice ? "text-amber-600" : "text-stone-light"
+                  )}>
+                    ${dayPrice >= 1000 ? `${Math.round(dayPrice / 1000)}k` : dayPrice}
+                  </span>
+                )}
               </button>
             </div>
           );
@@ -223,14 +227,16 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
   }, [offset, now.getFullYear(), now.getMonth()]);
 
   const [blockedSet, setBlockedSet] = useState<Set<string>>(new Set());
+  const [pricingMap, setPricingMap] = useState<Map<string, number>>(new Map());
+  const [baseRate, setBaseRate] = useState(0);
   const [loading, setLoading] = useState(false);
   const [hovered, setHovered] = useState("");
 
-  // Fetch availability for both visible months whenever they change
+  // Fetch availability + pricing for both visible months whenever they change
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchMonth(year: number, month: number): Promise<string[]> {
+    async function fetchAvailability(year: number, month: number): Promise<string[]> {
       const res = await fetch(
         `/api/properties/${propertyId}/availability?month=${month + 1}&year=${year}`
       );
@@ -239,15 +245,30 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
       return data.blockedDates;
     }
 
+    async function fetchPricing(year: number, month: number): Promise<{ date: string; price: number }[]> {
+      const res = await fetch(
+        `/api/properties/${propertyId}/pricing-calendar?month=${month + 1}&year=${year}`
+      );
+      if (!res.ok) return [];
+      const data = (await res.json()) as { pricing: { date: string; price: number }[]; baseRate: number };
+      if (!cancelled) setBaseRate(data.baseRate);
+      return data.pricing;
+    }
+
     async function load() {
       setLoading(true);
       try {
-        const [d1, d2] = await Promise.all([
-          fetchMonth(firstMonth.year, firstMonth.month),
-          fetchMonth(secondMonth.year, secondMonth.month),
+        const [d1, d2, p1, p2] = await Promise.all([
+          fetchAvailability(firstMonth.year, firstMonth.month),
+          fetchAvailability(secondMonth.year, secondMonth.month),
+          fetchPricing(firstMonth.year, firstMonth.month),
+          fetchPricing(secondMonth.year, secondMonth.month),
         ]);
         if (!cancelled) {
           setBlockedSet(new Set([...d1, ...d2]));
+          const map = new Map<string, number>();
+          for (const { date, price } of [...p1, ...p2]) map.set(date, price);
+          setPricingMap(map);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -351,7 +372,7 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-stone">
           <Loader2 size={22} className="animate-spin text-sand mr-2" />
-          <span className="text-sm">Loading availability…</span>
+          <span className="text-sm">Loading availability &amp; pricing…</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
@@ -359,6 +380,8 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
             year={firstMonth.year}
             month={firstMonth.month}
             blockedSet={blockedSet}
+            pricingMap={pricingMap}
+            baseRate={baseRate}
             today={today}
             checkIn={checkIn}
             checkOut={checkOut}
@@ -372,6 +395,8 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
             year={secondMonth.year}
             month={secondMonth.month}
             blockedSet={blockedSet}
+            pricingMap={pricingMap}
+            baseRate={baseRate}
             today={today}
             checkIn={checkIn}
             checkOut={checkOut}

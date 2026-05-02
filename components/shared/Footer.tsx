@@ -16,9 +16,9 @@ export default function Footer() {
               <Image
                 src="/logo-transparent.png"
                 alt="Rammies Vacation Rentals"
-                width={56}
-                height={56}
-                className="h-16 w-16 object-contain"
+                width={96}
+                height={96}
+                className="h-24 w-24 object-contain"
               />
             </Link>
             <p className="mt-3 text-sm font-semibold" style={{ color: "#C9A84C" }}>

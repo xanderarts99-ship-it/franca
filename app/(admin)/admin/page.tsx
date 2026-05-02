@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { expireStaleBookings } from "@/lib/bookings";
 import { getPaginationParams, getPaginationMeta, getPrismaSkip } from "@/lib/pagination";
 import PaginationNav from "@/components/shared/PaginationNav";
+import BookingsTabBar from "@/components/admin/BookingsTabBar";
 import type { BookingStatus } from "@prisma/client";
 
 export const metadata: Metadata = { title: "Bookings — Admin" };
@@ -176,34 +177,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
       </div>
 
       {/* Tab filter */}
-      <div className="flex items-center gap-1 mb-4 bg-white border border-warm-border rounded-xl p-1 w-fit">
-        {tabs.map(({ key, label, count }) => (
-          <Link
-            key={key}
-            href={`/admin?tab=${key}`}
-            className={cn(
-              "relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
-              activeTab === key
-                ? "bg-sand text-white shadow-sm"
-                : "text-stone hover:text-charcoal hover:bg-[#FAFAF7]"
-            )}
-          >
-            {label}
-            {count !== undefined && count > 0 && (
-              <span className={cn(
-                "inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold",
-                activeTab === key
-                  ? "bg-white/20 text-white"
-                  : key === "pending"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-warm-border text-stone"
-              )}>
-                {count}
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
+      <BookingsTabBar tabs={tabs} activeTab={activeTab} />
 
       {/* Table card */}
       <div className="bg-white border border-warm-border rounded-[var(--radius-card)] overflow-hidden">

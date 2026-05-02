@@ -22,7 +22,7 @@ export interface BookingTotalResult {
 }
 
 function toDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return date.toISOString().slice(0, 10);
 }
 
 function round2(n: number): number {
@@ -42,22 +42,26 @@ export async function calculateNightlyTotal(
 
   const baseRate = Number(property.nightlyRate);
 
-  // Generate all night dates (check-in date to day before check-out)
+  // Generate all night dates as UTC midnight to match @db.Date storage
   const nights: Date[] = [];
-  const cur = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-  const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+  const cur = new Date(Date.UTC(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate()));
+  const end = new Date(Date.UTC(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate()));
   while (cur < end) {
     nights.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
 
   if (nights.length === 0) throw new Error("No nights in range");
+
+  // Query bounds as UTC midnight to match @db.Date storage
+  const queryStart = new Date(Date.UTC(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate()));
+  const queryEnd = new Date(Date.UTC(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate()));
 
   // Fetch custom pricing for the date range
   const customPricingRecords = await prisma.propertyPricing.findMany({
     where: {
       propertyId,
-      date: { gte: checkIn, lt: checkOut },
+      date: { gte: queryStart, lt: queryEnd },
     },
     select: { date: true, price: true },
   });

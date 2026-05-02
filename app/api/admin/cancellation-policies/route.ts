@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
-  description: z.string().min(1).max(500),
+  description: z.string().max(500).optional(),
   fullRefundDays: z.number().int().min(0),
   partialRefundDays: z.number().int().min(0).nullable().optional(),
   partialRefundPercentage: z.number().int().min(1).max(99).nullable().optional(),
@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed", issues: parsed.error.issues }, { status: 400 });
   }
 
-  const policy = await prisma.cancellationPolicy.create({ data: parsed.data });
+  const { description, policyText, ...rest } = parsed.data;
+  const policy = await prisma.cancellationPolicy.create({
+    data: { ...rest, policyText, description: description ?? policyText },
+  });
   return NextResponse.json(policy, { status: 201 });
 }

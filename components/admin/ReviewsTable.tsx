@@ -193,14 +193,14 @@ export default function ReviewsTable({ reviews: initialReviews, pagination }: Pr
                       disabled={togglingId === r.id}
                       aria-label={r.featured ? "Remove from featured" : "Add to featured"}
                       className={cn(
-                        "relative w-10 h-5.5 rounded-full transition-colors cursor-pointer shrink-0",
-                        r.featured ? "bg-sand" : "bg-warm-border"
+                        "relative w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer shrink-0 disabled:opacity-50",
+                        r.featured ? "bg-sand" : "bg-stone-200"
                       )}
                     >
                       <span
                         className={cn(
-                          "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform",
-                          r.featured ? "translate-x-5" : "translate-x-0.5"
+                          "absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200",
+                          r.featured ? "left-5" : "left-1"
                         )}
                       />
                     </button>
@@ -250,14 +250,14 @@ export default function ReviewsTable({ reviews: initialReviews, pagination }: Pr
                     onClick={() => toggleFeatured(r.id, r.featured)}
                     disabled={togglingId === r.id}
                     className={cn(
-                      "relative w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0",
-                      r.featured ? "bg-sand" : "bg-warm-border"
+                      "relative w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer shrink-0 disabled:opacity-50",
+                      r.featured ? "bg-sand" : "bg-stone-200"
                     )}
                   >
                     <span
                       className={cn(
-                        "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform",
-                        r.featured ? "translate-x-4" : "translate-x-0.5"
+                        "absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200",
+                        r.featured ? "left-5" : "left-1"
                       )}
                     />
                   </button>

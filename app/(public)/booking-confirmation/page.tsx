@@ -77,9 +77,18 @@ export default async function BookingConfirmationPage({
   )
     redirect("/");
 
-  const nightlyRate = Number(booking.property.nightlyRate);
-  const totalAmount = Number(booking.totalAmount);
+  const nightlyRate  = Number(booking.property.nightlyRate);
+  const totalAmount  = Number(booking.totalAmount);
+  const nightlyTotal = booking.nightlyTotal !== null ? Number(booking.nightlyTotal) : null;
+  const cleaningFee  = booking.cleaningFee  !== null ? Number(booking.cleaningFee)  : null;
+  const taxRate      = booking.taxRate      !== null ? Number(booking.taxRate)      : null;
+  const taxAmount    = booking.taxAmount    !== null ? Number(booking.taxAmount)    : null;
+  const hasBreakdown = nightlyTotal !== null;
   const isPending = booking.status === "PENDING_PAYMENT";
+
+  function fmt(n: number) {
+    return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
 
   return (
     <div className="min-h-screen bg-cream">
@@ -209,27 +218,37 @@ export default async function BookingConfirmationPage({
 
             {/* Price summary */}
             <div className="bg-cream rounded-xl p-4 space-y-2">
-              <div className="flex justify-between text-sm text-stone">
-                <span>
-                  ${nightlyRate.toLocaleString()} × {booking.totalNights} night
-                  {booking.totalNights > 1 ? "s" : ""}
-                </span>
-                <span className="text-charcoal">
-                  ${(nightlyRate * booking.totalNights).toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm text-stone">
-                <span>Booking fee</span>
-                <span className="text-emerald-600 font-medium text-xs">
-                  Free
-                </span>
-              </div>
+              {hasBreakdown ? (
+                <>
+                  <div className="flex justify-between text-sm text-stone">
+                    <span>Nightly total ({booking.totalNights} night{booking.totalNights !== 1 ? "s" : ""})</span>
+                    <span className="text-charcoal">${fmt(nightlyTotal!)}</span>
+                  </div>
+                  {cleaningFee !== null && cleaningFee > 0 && (
+                    <div className="flex justify-between text-sm text-stone">
+                      <span>Cleaning fee</span>
+                      <span className="text-charcoal">${fmt(cleaningFee)}</span>
+                    </div>
+                  )}
+                  {taxAmount !== null && taxAmount > 0 && (
+                    <div className="flex justify-between text-sm text-stone">
+                      <span>Tax ({taxRate !== null ? `${Math.round(taxRate * 100)}%` : ""})</span>
+                      <span className="text-charcoal">${fmt(taxAmount)}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex justify-between text-sm text-stone">
+                  <span>${nightlyRate.toLocaleString()} × {booking.totalNights} night{booking.totalNights !== 1 ? "s" : ""}</span>
+                  <span className="text-charcoal">${(nightlyRate * booking.totalNights).toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center pt-2 mt-1 border-t border-warm-border">
                 <span className="font-semibold text-charcoal text-sm">
                   Total to be charged
                 </span>
                 <span className="font-serif text-2xl font-semibold text-charcoal">
-                  ${totalAmount.toLocaleString()}
+                  ${fmt(totalAmount)}
                 </span>
               </div>
             </div>

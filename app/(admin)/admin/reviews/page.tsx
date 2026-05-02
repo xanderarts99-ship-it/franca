@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getPaginationParams, getPaginationMeta, getPrismaSkip } from "@/lib/pagination";
 import ReviewsTable from "@/components/admin/ReviewsTable";
 import PendingReviewsList from "@/components/admin/PendingReviewsList";
+import ReviewsFilter from "@/components/admin/ReviewsFilter";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Reviews — Admin" };
@@ -84,56 +85,12 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
       <Header pendingCount={pendingCount} tab={tab} />
       <TabBar tab={tab} pendingCount={pendingCount} />
 
-      {/* Filters */}
-      <form method="GET" className="flex flex-wrap items-center gap-3 mb-5">
-        <input type="hidden" name="tab" value="approved" />
-        <select
-          name="propertyId"
-          defaultValue={propertyId ?? ""}
-          className="text-sm px-3 py-2 rounded-xl border border-warm-border bg-white text-charcoal focus:outline-none focus:ring-2 focus:ring-sand/40 cursor-pointer"
-        >
-          <option value="">All properties</option>
-          {properties.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-
-        <select
-          name="rating"
-          defaultValue={sp.rating ?? ""}
-          className="text-sm px-3 py-2 rounded-xl border border-warm-border bg-white text-charcoal focus:outline-none focus:ring-2 focus:ring-sand/40 cursor-pointer"
-        >
-          <option value="">All ratings</option>
-          {[5, 4, 3, 2, 1].map((r) => (
-            <option key={r} value={r}>{r} star{r !== 1 ? "s" : ""}</option>
-          ))}
-        </select>
-
-        <select
-          name="featured"
-          defaultValue={sp.featured ?? ""}
-          className="text-sm px-3 py-2 rounded-xl border border-warm-border bg-white text-charcoal focus:outline-none focus:ring-2 focus:ring-sand/40 cursor-pointer"
-        >
-          <option value="">All reviews</option>
-          <option value="true">Featured only</option>
-        </select>
-
-        <button
-          type="submit"
-          className="px-4 py-2 rounded-xl bg-sand text-white text-sm font-semibold hover:bg-sand-dark transition-all cursor-pointer"
-        >
-          Filter
-        </button>
-
-        {(propertyId || sp.rating || sp.featured) && (
-          <Link
-            href="/admin/reviews?tab=approved"
-            className="px-4 py-2 rounded-xl border border-warm-border text-sm text-stone hover:text-charcoal hover:bg-cream transition-all"
-          >
-            Clear
-          </Link>
-        )}
-      </form>
+      <ReviewsFilter
+        properties={properties}
+        currentPropertyId={propertyId}
+        currentRating={sp.rating}
+        currentFeatured={sp.featured}
+      />
 
       <ReviewsTable
         reviews={reviews.map((r) => ({

@@ -63,6 +63,7 @@ export default function BookingWidget({ propertyId, nightlyRate }: BookingWidget
   const [pricing, setPricing] = useState<PricingResult | null>(null);
   const [loadingPricing, setLoadingPricing] = useState(false);
   const [pricingError, setPricingError] = useState(false);
+  const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
     if (!checkIn || !checkOut || nights <= 0) {
@@ -100,15 +101,16 @@ export default function BookingWidget({ propertyId, nightlyRate }: BookingWidget
   function handleBook() {
     if (!checkIn || !checkOut || nights <= 0) return;
     const total = pricing?.totalAmount ?? nights * nightlyRate;
+    setNavigating(true);
     router.push(
       `/checkout?propertyId=${propertyId}&checkIn=${checkIn}&checkOut=${checkOut}&totalNights=${nights}&totalAmount=${total}`
     );
   }
 
-  const canBook = checkIn && checkOut && nights > 0 && !loadingPricing;
+  const canBook = checkIn && checkOut && nights > 0 && !loadingPricing && !navigating;
 
   return (
-    <div className="bg-surface border border-warm-border rounded-[var(--radius-card)] shadow-lg p-6 sticky top-24">
+    <div className="bg-surface border border-warm-border rounded-card shadow-lg p-6 sticky top-24">
       {/* Rate */}
       <div className="flex items-baseline gap-1 mb-5">
         <span className="font-serif text-3xl font-semibold text-charcoal">
@@ -258,6 +260,11 @@ export default function BookingWidget({ propertyId, nightlyRate }: BookingWidget
           <span className="flex items-center justify-center gap-2">
             <Loader2 size={14} className="animate-spin" />
             Calculating…
+          </span>
+        ) : navigating ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={14} className="animate-spin" />
+            Loading…
           </span>
         ) : canBook ? "Book Now" : "Select Dates to Book"}
       </button>
