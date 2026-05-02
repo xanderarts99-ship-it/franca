@@ -145,7 +145,7 @@ export async function sendAdminNewBookingRequest(
     return;
   }
 
-  const nextAuthUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const nextAuthUrl = process.env.NEXTAUTH_URL ?? "https://www.rammiesvacation.com";
   const bookingUrl = `${nextAuthUrl}/admin/bookings/${booking.id}`;
 
   const html = await render(

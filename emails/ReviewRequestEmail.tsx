@@ -42,7 +42,7 @@ export default function ReviewRequestEmail({
             <Heading style={h1}>How was your stay at {propertyName}?</Heading>
             <Text style={paragraph}>
               Hi {guestName}, we hope you had a wonderful time! Your feedback means a lot to
-              Francisca and her team, and helps future guests make informed decisions.
+              us and helps future guests make informed decisions.
             </Text>
 
             <Section style={stayBox}>
