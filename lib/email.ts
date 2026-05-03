@@ -21,10 +21,10 @@ function formatDate(date: Date): string {
 }
 
 function formatAmount(amount: number): string {
-  return `$${amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
 }
 
 function getResend(): { resend: Resend; from: string } | null {
@@ -97,12 +97,14 @@ export async function sendBookingConfirmationEmail(
       taxAmount: taxAmount !== null ? formatAmount(taxAmount) : null,
       totalAmount: formatAmount(Number(booking.totalAmount)),
       cancellationPolicyText: booking.property.cancellationPolicy?.policyText ?? undefined,
+      cancellationPolicyName: booking.property.cancellationPolicy?.name ?? undefined,
+      checkInInstructions: booking.property.checkInInstructions ?? undefined,
     })
   );
 
   await sendEmail(resend, from, {
     to: booking.guestEmail,
-    subject: `Booking Confirmed — ${booking.property.name} | Ref: ${booking.bookingReference}`,
+    subject: `✅ Booking Confirmed — ${booking.property.name} | Ref: ${booking.bookingReference}`,
     html,
   });
 }
@@ -111,6 +113,11 @@ export async function sendGuestBookingRequest(booking: BookingWithProperty): Pro
   const client = getResend();
   if (!client) return;
   const { resend, from } = client;
+
+  const nightlyTotal = booking.nightlyTotal ? Number(booking.nightlyTotal) : null;
+  const cleaningFee = booking.cleaningFee ? Number(booking.cleaningFee) : null;
+  const taxRate = booking.taxRate ? Number(booking.taxRate) : null;
+  const taxAmount = booking.taxAmount ? Number(booking.taxAmount) : null;
 
   const html = await render(
     GuestBookingRequestEmail({
@@ -122,12 +129,16 @@ export async function sendGuestBookingRequest(booking: BookingWithProperty): Pro
       checkOut: formatDate(booking.checkOut),
       totalNights: booking.totalNights,
       totalAmount: formatAmount(Number(booking.totalAmount)),
+      nightlyTotal: nightlyTotal !== null ? formatAmount(nightlyTotal) : null,
+      cleaningFee: cleaningFee !== null ? formatAmount(cleaningFee) : null,
+      taxRate: taxRate !== null ? taxRate : null,
+      taxAmount: taxAmount !== null ? formatAmount(taxAmount) : null,
     })
   );
 
   await sendEmail(resend, from, {
     to: booking.guestEmail,
-    subject: `Booking Request Received — ${booking.property.name} | Ref: ${booking.bookingReference}`,
+    subject: `📋 Booking Request Received — ${booking.property.name}`,
     html,
   });
 }
@@ -148,6 +159,12 @@ export async function sendAdminNewBookingRequest(
   const nextAuthUrl = process.env.NEXTAUTH_URL ?? "https://www.rammiesvacation.com";
   const bookingUrl = `${nextAuthUrl}/admin/bookings/${booking.id}`;
 
+  const nightlyTotal = booking.nightlyTotal ? Number(booking.nightlyTotal) : null;
+  const cleaningFee = booking.cleaningFee ? Number(booking.cleaningFee) : null;
+  const taxRate = booking.taxRate ? Number(booking.taxRate) : null;
+  const taxAmount = booking.taxAmount ? Number(booking.taxAmount) : null;
+  const totalAmountFormatted = formatAmount(Number(booking.totalAmount));
+
   const html = await render(
     AdminNewBookingRequestEmail({
       bookingReference: booking.bookingReference,
@@ -158,14 +175,18 @@ export async function sendAdminNewBookingRequest(
       checkIn: formatDate(booking.checkIn),
       checkOut: formatDate(booking.checkOut),
       totalNights: booking.totalNights,
-      totalAmount: formatAmount(Number(booking.totalAmount)),
+      totalAmount: totalAmountFormatted,
       bookingUrl,
+      nightlyTotal: nightlyTotal !== null ? formatAmount(nightlyTotal) : null,
+      cleaningFee: cleaningFee !== null ? formatAmount(cleaningFee) : null,
+      taxRate: taxRate !== null ? taxRate : null,
+      taxAmount: taxAmount !== null ? formatAmount(taxAmount) : null,
     })
   );
 
   await sendEmail(resend, from, {
     to: adminEmail,
-    subject: `New Booking Request — ${booking.property.name} · ${formatAmount(Number(booking.totalAmount))} | Ref: ${booking.bookingReference}`,
+    subject: `🔔 New Booking Request — ${booking.property.name} — ${totalAmountFormatted}`,
     html,
   });
 }
@@ -175,6 +196,8 @@ export async function sendGuestBookingRejected(booking: BookingWithProperty): Pr
   if (!client) return;
   const { resend, from } = client;
 
+  const siteUrl = process.env.NEXTAUTH_URL ?? "https://www.rammiesvacation.com";
+
   const html = await render(
     GuestBookingRejectedEmail({
       bookingReference: booking.bookingReference,
@@ -183,12 +206,13 @@ export async function sendGuestBookingRejected(booking: BookingWithProperty): Pr
       checkIn: formatDate(booking.checkIn),
       checkOut: formatDate(booking.checkOut),
       rejectionReason: booking.rejectionReason ?? undefined,
+      siteUrl,
     })
   );
 
   await sendEmail(resend, from, {
     to: booking.guestEmail,
-    subject: `Booking Request Update — ${booking.property.name} | Ref: ${booking.bookingReference}`,
+    subject: `Update on your booking request — ${booking.property.name}`,
     html,
   });
 }
@@ -216,7 +240,7 @@ export async function sendReviewRequestEmail(
 
   await sendEmail(resend, from, {
     to: booking.guestEmail,
-    subject: `How was your stay at ${booking.property.name}?`,
+    subject: `⭐ How was your stay at ${booking.property.name}?`,
     html,
   });
 }

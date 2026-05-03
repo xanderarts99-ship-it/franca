@@ -1,17 +1,32 @@
 import {
+  Html,
+  Head,
   Body,
   Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
-  Link,
   Preview,
+  Section,
   Row,
   Column,
-  Section,
   Text,
+  Heading,
+  Link,
 } from "@react-email/components";
+import {
+  EmailHeader,
+  EmailBadge,
+  EmailFooter,
+  emailBodyStyle,
+  emailContainerStyle,
+  emailBodySectionStyle,
+  refPillStyle,
+  brandColors,
+  SectionCard,
+  DataRow,
+  CardDivider,
+  PriceRow,
+  CTAButton,
+  InfoBox,
+} from "./components/EmailComponents";
 
 export interface AdminNewBookingRequestEmailProps {
   bookingReference: string;
@@ -24,7 +39,13 @@ export interface AdminNewBookingRequestEmailProps {
   totalNights: number;
   totalAmount: string;
   bookingUrl: string;
+  nightlyTotal?: string | null;
+  cleaningFee?: string | null;
+  taxRate?: number | null;
+  taxAmount?: string | null;
 }
+
+const sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
 
 export default function AdminNewBookingRequestEmail({
   bookingReference,
@@ -37,290 +58,246 @@ export default function AdminNewBookingRequestEmail({
   totalNights,
   totalAmount,
   bookingUrl,
+  nightlyTotal,
+  cleaningFee,
+  taxRate,
+  taxAmount,
 }: AdminNewBookingRequestEmailProps) {
+  const taxPct = taxRate != null ? Math.round(taxRate * 100) : null;
+
   return (
     <Html>
       <Head />
-      <Preview>New booking request — {guestName} · {totalAmount}</Preview>
-      <Body style={body}>
-        <Container style={container}>
+      <Preview>
+        New booking request — ${totalAmount} — {guestName} — {propertyName}
+      </Preview>
+      <Body style={emailBodyStyle}>
+        <Container style={emailContainerStyle}>
+          <EmailHeader />
+          <EmailBadge
+            background="#DBEAFE"
+            color="#1E40AF"
+            label="🔔 New Booking Request"
+          />
 
-          {/* Header */}
-          <Section style={header}>
-            <Text style={brandName}>Rammies Vacation · Admin</Text>
-          </Section>
+          <Section style={emailBodySectionStyle}>
+            <Heading
+              style={{
+                color: brandColors.green,
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontSize: "24px",
+                fontWeight: "700",
+                margin: "0 0 8px",
+              }}
+            >
+              New booking request received
+            </Heading>
+            <Text
+              style={{
+                color: brandColors.muted,
+                fontFamily: sans,
+                fontSize: "15px",
+                lineHeight: "1.6",
+                margin: "0 0 24px",
+              }}
+            >
+              A guest has submitted a booking request. Review the details below
+              and send them a Stripe Payment Link for the exact amount shown.
+            </Text>
 
-          {/* Alert banner */}
-          <Section style={alertBanner}>
-            <Text style={alertText}>🔔 New Booking Request</Text>
-          </Section>
-
-          {/* Amount — prominent */}
-          <Section style={amountSection}>
-            <Text style={amountLabel}>AMOUNT TO CHARGE</Text>
-            <Text style={amountValue}>{totalAmount}</Text>
-            <Text style={amountSub}>Create a Stripe Payment Link for this exact amount</Text>
-          </Section>
-
-          <Hr style={divider} />
-
-          {/* Booking details */}
-          <Section style={contentSection}>
-            <Heading style={h2}>Booking Details</Heading>
-          </Section>
-
-          <Section style={detailsBox}>
-            <Text style={detailsTitle}>Stay</Text>
-            <Row>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>PROPERTY</Text>
-                <Text style={detailValue}>{propertyName}</Text>
-              </Column>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>REFERENCE</Text>
-                <Text style={{ ...detailValue, fontFamily: "monospace" }}>{bookingReference}</Text>
-              </Column>
-            </Row>
-            <Hr style={innerDivider} />
-            <Row>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>CHECK-IN</Text>
-                <Text style={detailValue}>{checkIn}</Text>
-              </Column>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>CHECK-OUT</Text>
-                <Text style={detailValue}>{checkOut}</Text>
-              </Column>
-            </Row>
-            <Hr style={innerDivider} />
-            <Row>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>NIGHTS</Text>
-                <Text style={detailValue}>{totalNights}</Text>
-              </Column>
-            </Row>
-          </Section>
-
-          <Section style={{ ...detailsBox, marginTop: "12px" }}>
-            <Text style={detailsTitle}>Guest</Text>
-            <Row>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>NAME</Text>
-                <Text style={detailValue}>{guestName}</Text>
-              </Column>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>PHONE</Text>
-                <Text style={detailValue}>{guestPhone}</Text>
-              </Column>
-            </Row>
-            <Hr style={innerDivider} />
-            <Row>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>EMAIL</Text>
-                <Text style={detailValue}>{guestEmail}</Text>
-              </Column>
-            </Row>
-          </Section>
-
-          <Hr style={divider} />
-
-          {/* Instructions */}
-          <Section style={contentSection}>
-            <Text style={sectionHeading}>To confirm this booking:</Text>
-            <Text style={step}>1. Create a Stripe Payment Link for exactly {totalAmount}</Text>
-            <Text style={step}>2. Send it to {guestEmail}</Text>
-            <Text style={step}>3. Once payment is received, confirm the booking in your dashboard</Text>
-
-            <Section style={{ marginTop: "20px", textAlign: "center" }}>
-              <Link href={bookingUrl} style={ctaButton}>
-                View Booking in Dashboard →
-              </Link>
+            {/* Amount highlight */}
+            <Section
+              style={{
+                backgroundColor: brandColors.green,
+                borderRadius: "12px",
+                padding: "32px 48px",
+                textAlign: "center",
+                marginBottom: "24px",
+              }}
+            >
+              <Text
+                style={{
+                  color: brandColors.gold,
+                  fontFamily: sans,
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  letterSpacing: "2px",
+                  textTransform: "uppercase" as const,
+                  margin: "0 0 8px",
+                  textAlign: "center",
+                }}
+              >
+                AMOUNT TO CHARGE
+              </Text>
+              <Text
+                style={{
+                  color: brandColors.white,
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: "48px",
+                  fontWeight: "700",
+                  margin: "0 0 8px",
+                  textAlign: "center",
+                }}
+              >
+                {totalAmount}
+              </Text>
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.7)",
+                  fontFamily: sans,
+                  fontSize: "13px",
+                  margin: "0",
+                  textAlign: "center",
+                }}
+              >
+                Create a Stripe Payment Link for this exact amount
+              </Text>
             </Section>
 
-            <Text style={urgentNote}>
-              ⚠️ This request expires in 24 hours. Confirm promptly to secure the booking.
-            </Text>
+            {/* Guest Information */}
+            <SectionCard>
+              <Text
+                style={{
+                  color: brandColors.bodyText,
+                  fontFamily: sans,
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  margin: "0 0 12px",
+                }}
+              >
+                Guest Information
+              </Text>
+              <DataRow label="GUEST NAME" value={guestName} />
+              <CardDivider />
+              <Text
+                style={{
+                  color: brandColors.muted,
+                  fontFamily: sans,
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  letterSpacing: "1px",
+                  textTransform: "uppercase" as const,
+                  margin: "0 0 4px",
+                }}
+              >
+                EMAIL
+              </Text>
+              <Link
+                href={`mailto:${guestEmail}`}
+                style={{
+                  color: brandColors.green,
+                  fontFamily: sans,
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                }}
+              >
+                {guestEmail}
+              </Link>
+              <CardDivider />
+              <Text
+                style={{
+                  color: brandColors.muted,
+                  fontFamily: sans,
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  letterSpacing: "1px",
+                  textTransform: "uppercase" as const,
+                  margin: "0 0 4px",
+                }}
+              >
+                PHONE
+              </Text>
+              <Link
+                href={`tel:${guestPhone}`}
+                style={{
+                  color: brandColors.green,
+                  fontFamily: sans,
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                }}
+              >
+                {guestPhone}
+              </Link>
+            </SectionCard>
+
+            {/* Booking Details */}
+            <SectionCard>
+              <Text
+                style={{
+                  color: brandColors.bodyText,
+                  fontFamily: sans,
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  margin: "0 0 12px",
+                }}
+              >
+                Booking Details
+              </Text>
+              <DataRow label="PROPERTY" value={propertyName} />
+              <CardDivider />
+              <DataRow
+                label="BOOKING REFERENCE"
+                value={bookingReference}
+                valueStyle={refPillStyle}
+              />
+              <CardDivider />
+              <Row>
+                <Column>
+                  <DataRow label="CHECK-IN" value={checkIn} />
+                </Column>
+                <Column>
+                  <DataRow label="CHECK-OUT" value={checkOut} />
+                </Column>
+              </Row>
+              <CardDivider />
+              <DataRow
+                label="DURATION"
+                value={`${totalNights} night${totalNights !== 1 ? "s" : ""}`}
+              />
+            </SectionCard>
+
+            {/* Price Breakdown */}
+            <SectionCard>
+              <Text
+                style={{
+                  color: brandColors.bodyText,
+                  fontFamily: sans,
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  margin: "0 0 12px",
+                }}
+              >
+                Price Breakdown
+              </Text>
+              {nightlyTotal != null && (
+                <>
+                  <PriceRow label="Nightly total" amount={nightlyTotal} />
+                  {cleaningFee != null && (
+                    <PriceRow label="Cleaning fee" amount={cleaningFee} />
+                  )}
+                  {taxAmount != null && taxPct !== null && (
+                    <PriceRow label={`Tax (${taxPct}%)`} amount={taxAmount} />
+                  )}
+                </>
+              )}
+              <PriceRow label="Total to charge" amount={totalAmount} isTotal />
+            </SectionCard>
+
+            <CTAButton href={bookingUrl}>
+              View Booking in Dashboard →
+            </CTAButton>
+
+            <InfoBox type="warning">
+              ⏰ This request expires in 24 hours. Please review and send the
+              payment link promptly.
+            </InfoBox>
           </Section>
 
-          <Hr style={divider} />
-
-          <Section style={contentSection}>
-            <Text style={footer}>
-              © {new Date().getFullYear()} Rammies Vacation · Admin notification
-            </Text>
-          </Section>
-
+          <EmailFooter />
         </Container>
       </Body>
     </Html>
   );
 }
-
-const body: React.CSSProperties = {
-  backgroundColor: "#F5F2EC",
-  fontFamily: "'Georgia', serif",
-  margin: "0",
-  padding: "40px 0",
-};
-
-const container: React.CSSProperties = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "12px",
-  maxWidth: "560px",
-  margin: "0 auto",
-  overflow: "hidden",
-  border: "1px solid #E8E2D9",
-};
-
-const header: React.CSSProperties = {
-  backgroundColor: "#0F2945",
-  padding: "28px 40px",
-};
-
-const brandName: React.CSSProperties = {
-  color: "#FFFFFF",
-  fontSize: "20px",
-  fontWeight: "600",
-  margin: "0",
-  letterSpacing: "0.02em",
-};
-
-const alertBanner: React.CSSProperties = {
-  backgroundColor: "#FFFBEB",
-  borderBottom: "1px solid #FDE68A",
-  padding: "12px 40px",
-  textAlign: "center",
-};
-
-const alertText: React.CSSProperties = {
-  color: "#92400E",
-  fontSize: "14px",
-  fontWeight: "700",
-  margin: "0",
-  fontFamily: "sans-serif",
-  letterSpacing: "0.01em",
-};
-
-const amountSection: React.CSSProperties = {
-  textAlign: "center",
-  padding: "32px 40px 24px",
-};
-
-const amountLabel: React.CSSProperties = {
-  color: "#9B8E80",
-  fontSize: "10px",
-  fontWeight: "700",
-  letterSpacing: "0.12em",
-  margin: "0 0 8px",
-  fontFamily: "sans-serif",
-};
-
-const amountValue: React.CSSProperties = {
-  color: "#1B3A6B",
-  fontSize: "44px",
-  fontWeight: "700",
-  margin: "0 0 4px",
-  fontFamily: "sans-serif",
-};
-
-const amountSub: React.CSSProperties = {
-  color: "#57534E",
-  fontSize: "13px",
-  margin: "0",
-  fontFamily: "sans-serif",
-};
-
-const divider: React.CSSProperties = { borderColor: "#E8E2D9", margin: "0" };
-const innerDivider: React.CSSProperties = { borderColor: "#E8E2D9", margin: "12px 0" };
-
-const contentSection: React.CSSProperties = { padding: "24px 40px" };
-
-const h2: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "18px",
-  fontWeight: "700",
-  margin: "0",
-};
-
-const sectionHeading: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "15px",
-  fontWeight: "700",
-  margin: "0 0 12px",
-  fontFamily: "sans-serif",
-};
-
-const step: React.CSSProperties = {
-  color: "#57534E",
-  fontSize: "14px",
-  lineHeight: "1.6",
-  margin: "0 0 6px",
-  fontFamily: "sans-serif",
-  paddingLeft: "4px",
-};
-
-const ctaButton: React.CSSProperties = {
-  backgroundColor: "#1B3A6B",
-  borderRadius: "100px",
-  color: "#FFFFFF",
-  display: "inline-block",
-  fontSize: "14px",
-  fontWeight: "600",
-  fontFamily: "sans-serif",
-  padding: "12px 28px",
-  textDecoration: "none",
-};
-
-const urgentNote: React.CSSProperties = {
-  backgroundColor: "#FEF2F2",
-  border: "1px solid #FECACA",
-  borderRadius: "8px",
-  color: "#991B1B",
-  fontSize: "13px",
-  fontFamily: "sans-serif",
-  padding: "12px 16px",
-  margin: "20px 0 0",
-  lineHeight: "1.5",
-};
-
-const detailsBox: React.CSSProperties = {
-  backgroundColor: "#F5F2EC",
-  borderRadius: "8px",
-  margin: "0 40px",
-  padding: "20px 24px",
-};
-
-const detailsTitle: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "13px",
-  fontWeight: "700",
-  margin: "0 0 16px",
-  fontFamily: "sans-serif",
-  letterSpacing: "0.02em",
-};
-
-const detailCell: React.CSSProperties = { padding: "0 12px 0 0", verticalAlign: "top" };
-
-const detailLabel: React.CSSProperties = {
-  color: "#9B8E80",
-  fontSize: "9px",
-  fontWeight: "700",
-  letterSpacing: "0.1em",
-  margin: "0 0 4px",
-  fontFamily: "sans-serif",
-};
-
-const detailValue: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "14px",
-  fontWeight: "600",
-  margin: "0",
-  fontFamily: "sans-serif",
-};
-
-const footer: React.CSSProperties = {
-  color: "#A8A29E",
-  fontSize: "11px",
-  margin: "0",
-  fontFamily: "sans-serif",
-};

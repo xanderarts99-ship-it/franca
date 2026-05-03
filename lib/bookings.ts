@@ -228,10 +228,15 @@ export async function confirmBooking(
     },
   });
 
+  console.log("[CONFIRM BOOKING] About to send confirmation email", { bookingId });
   try {
     await sendBookingConfirmationEmail(updated);
+    console.log("[CONFIRM BOOKING] Email function completed", { bookingId });
   } catch (err) {
-    console.error("Failed to send booking confirmation email:", err);
+    console.error("[EMAIL ERROR] booking confirmation email failed", {
+      bookingId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   return updated as Booking & { property: Property };

@@ -1,16 +1,30 @@
 import {
+  Html,
+  Head,
   Body,
   Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
   Preview,
+  Section,
   Row,
   Column,
-  Section,
   Text,
+  Heading,
 } from "@react-email/components";
+import {
+  EmailHeader,
+  EmailBadge,
+  EmailFooter,
+  emailBodyStyle,
+  emailContainerStyle,
+  emailBodySectionStyle,
+  refPillStyle,
+  brandColors,
+  SectionCard,
+  DataRow,
+  CardDivider,
+  PriceRow,
+  InfoBox,
+} from "./components/EmailComponents";
 
 export interface BookingConfirmationProps {
   bookingReference: string;
@@ -27,7 +41,11 @@ export interface BookingConfirmationProps {
   taxAmount: string | null;
   totalAmount: string;
   cancellationPolicyText?: string;
+  cancellationPolicyName?: string;
+  checkInInstructions?: string;
 }
+
+const sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
 
 export default function BookingConfirmation({
   bookingReference,
@@ -44,303 +62,215 @@ export default function BookingConfirmation({
   taxAmount,
   totalAmount,
   cancellationPolicyText,
+  cancellationPolicyName,
+  checkInInstructions,
 }: BookingConfirmationProps) {
   const taxPct = taxRate !== null ? Math.round(taxRate * 100) : null;
 
   return (
     <Html>
       <Head />
-      <Preview>Booking confirmed — {bookingReference}</Preview>
-      <Body style={body}>
-        <Container style={container}>
+      <Preview>
+        Your booking at {propertyName} is confirmed — Ref: {bookingReference}
+      </Preview>
+      <Body style={emailBodyStyle}>
+        <Container style={emailContainerStyle}>
+          <EmailHeader />
+          <EmailBadge
+            background="#DCFCE7"
+            color="#166534"
+            label="✅ Booking Confirmed"
+          />
 
-          {/* Header */}
-          <Section style={header}>
-            <Text style={brandName}>Rammies Vacation</Text>
-          </Section>
-
-          {/* Reference badge */}
-          <Section style={refSection}>
-            <Text style={refLabel}>BOOKING REFERENCE</Text>
-            <Text style={refCode}>{bookingReference}</Text>
-          </Section>
-
-          <Hr style={divider} />
-
-          {/* Payment received note */}
-          <Section style={paymentNote}>
-            <Text style={paymentNoteText}>
-              ✓ Your payment has been received and your booking is officially confirmed.
+          <Section style={emailBodySectionStyle}>
+            <Heading
+              style={{
+                color: brandColors.green,
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontSize: "24px",
+                fontWeight: "700",
+                margin: "0 0 8px",
+              }}
+            >
+              Your booking is confirmed, {guestName}!
+            </Heading>
+            <Text
+              style={{
+                color: brandColors.muted,
+                fontFamily: sans,
+                fontSize: "15px",
+                lineHeight: "1.6",
+                margin: "0 0 24px",
+              }}
+            >
+              We look forward to welcoming you. Here are your full booking
+              details.
             </Text>
-          </Section>
 
-          {/* Greeting */}
-          <Section style={contentSection}>
-            <Heading style={h1}>Your booking is confirmed!</Heading>
-            <Text style={paragraph}>
-              Hi {guestName}, great news — your stay at{" "}
-              <strong>{propertyName}</strong> has been confirmed. We look
-              forward to welcoming you.
-            </Text>
-          </Section>
-
-          {/* Stay details */}
-          <Section style={detailsBox}>
-            <Text style={detailsTitle}>Stay Details</Text>
-            <Row>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>CHECK-IN</Text>
-                <Text style={detailValue}>{checkIn}</Text>
-                {checkInTime && (
-                  <Text style={detailSub}>From {checkInTime}</Text>
-                )}
-              </Column>
-              <Column style={detailCell}>
-                <Text style={detailLabel}>CHECK-OUT</Text>
-                <Text style={detailValue}>{checkOut}</Text>
-                {checkOutTime && (
-                  <Text style={detailSub}>By {checkOutTime}</Text>
-                )}
-              </Column>
-            </Row>
-            <Hr style={innerDivider} />
-
-            {/* Price breakdown */}
-            {nightlyTotal !== null ? (
-              <>
-                <Row>
-                  <Column style={detailCell}>
-                    <Text style={detailLabel}>DURATION</Text>
-                    <Text style={detailValue}>
-                      {totalNights} night{totalNights > 1 ? "s" : ""}
-                    </Text>
-                  </Column>
-                  <Column style={detailCell}>
-                    <Text style={detailLabel}>NIGHTLY TOTAL</Text>
-                    <Text style={detailValue}>{nightlyTotal}</Text>
-                  </Column>
-                </Row>
-                {(cleaningFee !== null || taxAmount !== null) && (
-                  <>
-                    <Hr style={innerDivider} />
-                    <Row>
-                      {cleaningFee !== null && (
-                        <Column style={detailCell}>
-                          <Text style={detailLabel}>CLEANING FEE</Text>
-                          <Text style={detailValue}>{cleaningFee}</Text>
-                        </Column>
-                      )}
-                      {taxAmount !== null && taxPct !== null && (
-                        <Column style={detailCell}>
-                          <Text style={detailLabel}>TAX ({taxPct}%)</Text>
-                          <Text style={detailValue}>{taxAmount}</Text>
-                        </Column>
-                      )}
-                    </Row>
-                  </>
-                )}
-                <Hr style={innerDivider} />
-                <Row>
-                  <Column style={detailCell}>
-                    <Text style={detailLabel}>TOTAL CHARGED</Text>
-                    <Text style={{ ...detailValue, color: "#1B3A6B", fontWeight: "700" }}>
-                      {totalAmount}
-                    </Text>
-                  </Column>
-                </Row>
-              </>
-            ) : (
+            {/* Your Stay */}
+            <SectionCard>
+              <DataRow label="PROPERTY" value={propertyName} />
+              <CardDivider />
+              <DataRow
+                label="BOOKING REFERENCE"
+                value={bookingReference}
+                valueStyle={refPillStyle}
+              />
+              <CardDivider />
               <Row>
-                <Column style={detailCell}>
-                  <Text style={detailLabel}>DURATION</Text>
-                  <Text style={detailValue}>
-                    {totalNights} night{totalNights > 1 ? "s" : ""}
-                  </Text>
+                <Column>
+                  <DataRow label="CHECK-IN" value={checkIn} />
                 </Column>
-                <Column style={detailCell}>
-                  <Text style={detailLabel}>TOTAL CHARGED</Text>
-                  <Text style={{ ...detailValue, color: "#1B3A6B", fontWeight: "700" }}>
-                    {totalAmount}
-                  </Text>
+                <Column>
+                  <DataRow label="CHECK-OUT" value={checkOut} />
                 </Column>
               </Row>
+              <CardDivider />
+              <Row>
+                <Column>
+                  <DataRow
+                    label="CHECK-IN TIME"
+                    value={checkInTime ?? "2:00 PM"}
+                  />
+                </Column>
+                <Column>
+                  <DataRow
+                    label="CHECK-OUT TIME"
+                    value={checkOutTime ?? "12:00 PM"}
+                  />
+                </Column>
+              </Row>
+              <CardDivider />
+              <DataRow
+                label="DURATION"
+                value={`${totalNights} night${totalNights !== 1 ? "s" : ""}`}
+              />
+            </SectionCard>
+
+            {/* Price Breakdown */}
+            {nightlyTotal !== null && (
+              <SectionCard>
+                <Text
+                  style={{
+                    color: brandColors.bodyText,
+                    fontFamily: sans,
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    margin: "0 0 12px",
+                  }}
+                >
+                  Price Breakdown
+                </Text>
+                <PriceRow label="Nightly total" amount={nightlyTotal} />
+                {cleaningFee !== null && (
+                  <PriceRow label="Cleaning fee" amount={cleaningFee} />
+                )}
+                {taxAmount !== null && taxPct !== null && (
+                  <PriceRow label={`Tax (${taxPct}%)`} amount={taxAmount} />
+                )}
+                <PriceRow label="Total Charged" amount={totalAmount} isTotal />
+              </SectionCard>
             )}
+
+            {/* Check-in Instructions */}
+            {checkInInstructions && (
+              <SectionCard>
+                <Text
+                  style={{
+                    color: brandColors.muted,
+                    fontFamily: sans,
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    letterSpacing: "1px",
+                    textTransform: "uppercase" as const,
+                    margin: "0 0 8px",
+                  }}
+                >
+                  CHECK-IN INSTRUCTIONS
+                </Text>
+                <Text
+                  style={{
+                    color: brandColors.bodyText,
+                    fontFamily: sans,
+                    fontSize: "15px",
+                    lineHeight: "1.6",
+                    margin: "0",
+                  }}
+                >
+                  {checkInInstructions}
+                </Text>
+              </SectionCard>
+            )}
+
+            {/* Cancellation Policy */}
+            {cancellationPolicyText && (
+              <SectionCard>
+                {cancellationPolicyName && (
+                  <Text
+                    style={{
+                      backgroundColor: "#F1F5F9",
+                      borderRadius: "4px",
+                      color: brandColors.muted,
+                      display: "inline-block",
+                      fontFamily: sans,
+                      fontSize: "10px",
+                      fontWeight: "700",
+                      letterSpacing: "1px",
+                      margin: "0 0 8px",
+                      padding: "2px 8px",
+                      textTransform: "uppercase" as const,
+                    }}
+                  >
+                    {cancellationPolicyName}
+                  </Text>
+                )}
+                <Text
+                  style={{
+                    color: brandColors.muted,
+                    fontFamily: sans,
+                    fontSize: "14px",
+                    lineHeight: "1.6",
+                    margin: "0",
+                  }}
+                >
+                  {cancellationPolicyText}
+                </Text>
+              </SectionCard>
+            )}
+
+            <InfoBox type="warning">
+              📧 Can&apos;t find this email? Please check your spam or junk
+              folder and mark us as a trusted sender to receive future updates.
+            </InfoBox>
+
+            <Text
+              style={{
+                color: brandColors.bodyText,
+                fontFamily: sans,
+                fontSize: "15px",
+                lineHeight: "1.6",
+                margin: "24px 0 8px",
+              }}
+            >
+              Thank you for choosing Rammies Vacation Rentals. If you have any
+              questions before your stay, please don&apos;t hesitate to reach
+              out.
+            </Text>
+            <Text
+              style={{
+                color: brandColors.muted,
+                fontFamily: sans,
+                fontSize: "14px",
+                margin: "0",
+              }}
+            >
+              📞 346-425-2248 · ✉️ rammiesvacation@gmail.com
+            </Text>
           </Section>
 
-          {/* Cancellation policy */}
-          {cancellationPolicyText && (
-            <>
-              <Hr style={divider} />
-              <Section style={contentSection}>
-                <Text style={sectionTitle}>Cancellation Policy</Text>
-                <Text style={paragraph}>{cancellationPolicyText}</Text>
-              </Section>
-            </>
-          )}
-
-          <Hr style={divider} />
-
-          {/* Footer note */}
-          <Section style={contentSection}>
-            <Text style={paragraph}>
-              If you have any questions about your reservation, please contact us
-              and reference your booking number above.
-            </Text>
-            <Text style={footer}>
-              © {new Date().getFullYear()} Rammies Vacation · All rights reserved
-            </Text>
-          </Section>
-
+          <EmailFooter />
         </Container>
       </Body>
     </Html>
   );
 }
-
-const body: React.CSSProperties = {
-  backgroundColor: "#F5F2EC",
-  fontFamily: "'Georgia', serif",
-  margin: "0",
-  padding: "40px 0",
-};
-
-const container: React.CSSProperties = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "12px",
-  maxWidth: "560px",
-  margin: "0 auto",
-  overflow: "hidden",
-  border: "1px solid #E8E2D9",
-};
-
-const header: React.CSSProperties = {
-  backgroundColor: "#0F2945",
-  padding: "28px 40px",
-};
-
-const brandName: React.CSSProperties = {
-  color: "#FFFFFF",
-  fontSize: "20px",
-  fontWeight: "600",
-  margin: "0",
-  letterSpacing: "0.02em",
-};
-
-const refSection: React.CSSProperties = {
-  padding: "28px 40px 20px",
-  textAlign: "center",
-};
-
-const refLabel: React.CSSProperties = {
-  color: "#9B8E80",
-  fontSize: "10px",
-  fontWeight: "700",
-  letterSpacing: "0.12em",
-  margin: "0 0 8px",
-  fontFamily: "sans-serif",
-};
-
-const refCode: React.CSSProperties = {
-  color: "#1B3A6B",
-  fontSize: "28px",
-  fontWeight: "700",
-  letterSpacing: "0.06em",
-  margin: "0",
-  fontFamily: "monospace",
-};
-
-const divider: React.CSSProperties = {
-  borderColor: "#E8E2D9",
-  margin: "0",
-};
-
-const innerDivider: React.CSSProperties = {
-  borderColor: "#E8E2D9",
-  margin: "12px 0",
-};
-
-const contentSection: React.CSSProperties = {
-  padding: "24px 40px",
-};
-
-const h1: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "22px",
-  fontWeight: "700",
-  margin: "0 0 12px",
-};
-
-const sectionTitle: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "14px",
-  fontWeight: "700",
-  margin: "0 0 8px",
-  fontFamily: "sans-serif",
-  letterSpacing: "0.02em",
-};
-
-const paragraph: React.CSSProperties = {
-  color: "#57534E",
-  fontSize: "15px",
-  lineHeight: "1.6",
-  margin: "0 0 8px",
-  fontFamily: "sans-serif",
-};
-
-const detailsBox: React.CSSProperties = {
-  backgroundColor: "#F5F2EC",
-  borderRadius: "8px",
-  margin: "0 40px",
-  padding: "20px 24px",
-};
-
-const detailCell: React.CSSProperties = {
-  padding: "0 12px 0 0",
-  verticalAlign: "top",
-};
-
-const detailLabel: React.CSSProperties = {
-  color: "#9B8E80",
-  fontSize: "9px",
-  fontWeight: "700",
-  letterSpacing: "0.1em",
-  margin: "0 0 4px",
-  fontFamily: "sans-serif",
-};
-
-const detailValue: React.CSSProperties = {
-  color: "#1C1917",
-  fontSize: "14px",
-  fontWeight: "600",
-  margin: "0",
-  fontFamily: "sans-serif",
-};
-
-const detailSub: React.CSSProperties = {
-  color: "#9B8E80",
-  fontSize: "11px",
-  margin: "2px 0 0",
-  fontFamily: "sans-serif",
-};
-
-const paymentNote: React.CSSProperties = {
-  backgroundColor: "#F0FDF4",
-  borderBottom: "1px solid #BBF7D0",
-  padding: "12px 40px",
-  textAlign: "center",
-};
-
-const paymentNoteText: React.CSSProperties = {
-  color: "#166534",
-  fontSize: "13px",
-  fontWeight: "600",
-  margin: "0",
-  fontFamily: "sans-serif",
-};
-
-const footer: React.CSSProperties = {
-  color: "#A8A29E",
-  fontSize: "11px",
-  margin: "16px 0 0",
-  fontFamily: "sans-serif",
-};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -23,13 +23,16 @@ export default function ReviewsFilter({
   currentFeatured,
 }: ReviewsFilterProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
 
   const hasFilters = !!(currentPropertyId || currentRating || currentFeatured);
+  const isWorking = loading || isPending;
 
   function handleClear() {
-    setLoading(true);
-    router.push("/admin/reviews?tab=approved");
+    startTransition(() => {
+      router.push("/admin/reviews?tab=approved");
+    });
   }
 
   return (
@@ -73,7 +76,7 @@ export default function ReviewsFilter({
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={isWorking}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sand text-white text-sm font-semibold hover:bg-sand-dark transition-all cursor-pointer disabled:opacity-60"
       >
         {loading && <Loader2 size={13} className="animate-spin" />}
@@ -84,10 +87,10 @@ export default function ReviewsFilter({
         <button
           type="button"
           onClick={handleClear}
-          disabled={loading}
+          disabled={isWorking}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-warm-border text-sm text-stone hover:text-charcoal hover:bg-cream transition-all disabled:opacity-60 cursor-pointer"
         >
-          {loading && <Loader2 size={13} className="animate-spin" />}
+          {isPending && <Loader2 size={13} className="animate-spin" />}
           Clear filters
         </button>
       )}

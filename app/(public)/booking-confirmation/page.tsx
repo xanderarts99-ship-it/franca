@@ -110,6 +110,19 @@ export default async function BookingConfirmationPage({
           </p>
         </div>
 
+        {/* ── Spam notice ──────────────────────────────────────── */}
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 mb-8">
+          <Mail size={16} className="shrink-0 mt-0.5 text-amber-600" />
+          <p className="text-sm text-amber-800">
+            A confirmation email has been sent to{" "}
+            <span className="font-semibold">{booking.guestEmail}</span>. If
+            you don&apos;t see it within a few minutes, please check your spam
+            or junk folder and add{" "}
+            <span className="font-semibold">bookings@rammiesvacation.com</span>{" "}
+            to your contacts.
+          </p>
+        </div>
+
         {/* ── Booking card ─────────────────────────────────────── */}
         <div className="bg-surface border border-warm-border rounded-card overflow-hidden mb-4">
           {/* Property banner */}

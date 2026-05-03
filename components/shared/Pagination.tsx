@@ -48,7 +48,7 @@ export default function Pagination({
   const pages = getPageNumbers(currentPage, totalPages);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-warm-border">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-warm-border">
       {/* Count */}
       <p className="text-xs text-stone">
         Showing{" "}
@@ -57,31 +57,8 @@ export default function Pagination({
         <span className="font-semibold text-charcoal">{total}</span> results
       </p>
 
-      {/* Mobile: prev / indicator / next */}
-      <div className="flex sm:hidden items-center gap-3">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={!hasPrevPage}
-          aria-label="Previous page"
-          className="w-9 h-9 rounded-xl border border-warm-border flex items-center justify-center text-charcoal hover:bg-cream disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-        >
-          <ChevronLeft size={15} />
-        </button>
-        <span className="text-xs text-stone">
-          Page <span className="font-semibold text-charcoal">{currentPage}</span> of {totalPages}
-        </span>
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={!hasNextPage}
-          aria-label="Next page"
-          className="w-9 h-9 rounded-xl border border-warm-border flex items-center justify-center text-charcoal hover:bg-cream disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-        >
-          <ChevronRight size={15} />
-        </button>
-      </div>
-
-      {/* Desktop: full pagination */}
-      <div className="hidden sm:flex items-center gap-1">
+      {/* Pagination — all screen sizes */}
+      <div className="flex items-center gap-1 flex-wrap">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={!hasPrevPage}
