@@ -15,6 +15,7 @@ export interface BookingTotalResult {
   nightlyTotal: number;
   nightlyBreakdown: NightlyBreakdownItem[];
   cleaningFee: number;
+  petFee: number;
   taxRate: number;
   taxAmount: number;
   totalAmount: number;
@@ -84,13 +85,14 @@ export async function calculateNightlyTotal(
 export async function calculateBookingTotal(
   propertyId: string,
   checkIn: Date,
-  checkOut: Date
+  checkOut: Date,
+  includePetFee: boolean = false
 ): Promise<BookingTotalResult> {
   const [nightlyResult, property] = await Promise.all([
     calculateNightlyTotal(propertyId, checkIn, checkOut),
     prisma.property.findUnique({
       where: { id: propertyId },
-      select: { cleaningFee: true, taxRate: true },
+      select: { cleaningFee: true, taxRate: true, petsAllowed: true, petFee: true },
     }),
   ]);
 
@@ -98,14 +100,18 @@ export async function calculateBookingTotal(
 
   const nightlyTotal = nightlyResult.total;
   const cleaningFee = round2(Number(property.cleaningFee ?? 0));
+  const petFee = includePetFee && property.petsAllowed && property.petFee
+    ? round2(Number(property.petFee))
+    : 0;
   const taxRate = round2(Number(property.taxRate ?? 0.06));
-  const taxAmount = round2((nightlyTotal + cleaningFee) * taxRate);
-  const totalAmount = round2(nightlyTotal + cleaningFee + taxAmount);
+  const taxAmount = round2((nightlyTotal + cleaningFee + petFee) * taxRate);
+  const totalAmount = round2(nightlyTotal + cleaningFee + petFee + taxAmount);
 
   return {
     nightlyTotal,
     nightlyBreakdown: nightlyResult.breakdown,
     cleaningFee,
+    petFee,
     taxRate,
     taxAmount,
     totalAmount,
@@ -117,8 +123,9 @@ export async function validateBookingAmount(
   propertyId: string,
   checkIn: Date,
   checkOut: Date,
-  submittedTotal: number
+  submittedTotal: number,
+  includePetFee: boolean = false
 ): Promise<boolean> {
-  const result = await calculateBookingTotal(propertyId, checkIn, checkOut);
+  const result = await calculateBookingTotal(propertyId, checkIn, checkOut, includePetFee);
   return Math.abs(result.totalAmount - submittedTotal) <= 1.0;
 }
