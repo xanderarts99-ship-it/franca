@@ -5,6 +5,7 @@ import { calculateBookingTotal } from "@/lib/pricing";
 const querySchema = z.object({
   checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  includePetFee: z.string().optional().transform((v) => v === "true"),
 });
 
 function parseDateLocal(str: string): Date {
@@ -22,14 +23,16 @@ export async function GET(
   const parsed = querySchema.safeParse({
     checkIn: searchParams.get("checkIn"),
     checkOut: searchParams.get("checkOut"),
+    includePetFee: searchParams.get("includePetFee") ?? undefined,
   });
 
   if (!parsed.success) {
     return NextResponse.json({ error: "checkIn and checkOut are required (YYYY-MM-DD)" }, { status: 400 });
   }
 
-  const checkIn = parseDateLocal(parsed.data.checkIn);
-  const checkOut = parseDateLocal(parsed.data.checkOut);
+  const { checkIn: checkInStr, checkOut: checkOutStr, includePetFee } = parsed.data;
+  const checkIn = parseDateLocal(checkInStr);
+  const checkOut = parseDateLocal(checkOutStr);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -45,7 +48,7 @@ export async function GET(
   const nights = Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000);
 
   try {
-    const result = await calculateBookingTotal(id, checkIn, checkOut);
+    const result = await calculateBookingTotal(id, checkIn, checkOut, includePetFee);
     return NextResponse.json({ ...result, nights });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

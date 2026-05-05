@@ -60,6 +60,7 @@ interface CreateBookingRequestInput {
   cleaningFee?: number;
   taxRate?: number;
   taxAmount?: number;
+  includePetFee?: boolean;
 }
 
 export async function createBookingRequest(
@@ -73,6 +74,7 @@ export async function createBookingRequest(
     checkIn,
     checkOut,
     totalAmount,
+    includePetFee = false,
   } = data;
 
   const checkInNorm = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
@@ -107,12 +109,13 @@ export async function createBookingRequest(
     propertyId,
     checkInNorm,
     checkOutNorm,
-    totalAmount
+    totalAmount,
+    includePetFee
   );
   if (!isValid) throw new BookingAmountMismatchError();
 
   // 4. Get full breakdown to store on booking
-  const breakdown = await calculateBookingTotal(propertyId, checkInNorm, checkOutNorm);
+  const breakdown = await calculateBookingTotal(propertyId, checkInNorm, checkOutNorm, includePetFee);
 
   // 5. Create the booking — dates NOT blocked until CONFIRMED
   const bookingReference = await generateBookingReference();
@@ -129,6 +132,7 @@ export async function createBookingRequest(
       totalNights,
       nightlyTotal: breakdown.nightlyTotal,
       cleaningFee: breakdown.cleaningFee,
+      petFee: breakdown.petFee > 0 ? breakdown.petFee : null,
       taxRate: breakdown.taxRate,
       taxAmount: breakdown.taxAmount,
       totalAmount: breakdown.totalAmount,
