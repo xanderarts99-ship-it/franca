@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft, CalendarDays, MapPin, User, Mail, Phone, Hash,
-  Clock, CheckCircle2, XCircle, Ban, FileText, Star,
+  Clock, CheckCircle2, XCircle, Ban, FileText, Star, PawPrint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CancelBookingButton from "@/components/admin/CancelBookingButton";
@@ -90,6 +90,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
   const totalAmount  = Number(booking.totalAmount);
   const nightlyTotal = booking.nightlyTotal !== null ? Number(booking.nightlyTotal) : null;
   const cleaningFee  = booking.cleaningFee  !== null ? Number(booking.cleaningFee)  : null;
+  const petFee       = booking.petFee       !== null ? Number(booking.petFee)       : null;
   const taxRate      = booking.taxRate      !== null ? Number(booking.taxRate)      : null;
   const taxAmount    = booking.taxAmount    !== null ? Number(booking.taxAmount)    : null;
 
@@ -229,6 +230,15 @@ export default async function BookingDetailPage({ params }: PageProps) {
                   <div className="flex justify-between">
                     <span>Cleaning fee</span>
                     <span className="text-charcoal">${fmt(cleaningFee)}</span>
+                  </div>
+                )}
+                {petFee !== null && petFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <PawPrint size={11} className="text-stone-light" />
+                      Pet fee
+                    </span>
+                    <span className="text-charcoal">${fmt(petFee)}</span>
                   </div>
                 )}
                 {taxAmount !== null && taxAmount > 0 && (

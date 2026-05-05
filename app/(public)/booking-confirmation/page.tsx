@@ -81,6 +81,7 @@ export default async function BookingConfirmationPage({
   const totalAmount  = Number(booking.totalAmount);
   const nightlyTotal = booking.nightlyTotal !== null ? Number(booking.nightlyTotal) : null;
   const cleaningFee  = booking.cleaningFee  !== null ? Number(booking.cleaningFee)  : null;
+  const petFee       = booking.petFee       !== null ? Number(booking.petFee)       : null;
   const taxRate      = booking.taxRate      !== null ? Number(booking.taxRate)      : null;
   const taxAmount    = booking.taxAmount    !== null ? Number(booking.taxAmount)    : null;
   const hasBreakdown = nightlyTotal !== null;
@@ -241,6 +242,12 @@ export default async function BookingConfirmationPage({
                     <div className="flex justify-between text-sm text-stone">
                       <span>Cleaning fee</span>
                       <span className="text-charcoal">${fmt(cleaningFee)}</span>
+                    </div>
+                  )}
+                  {petFee !== null && petFee > 0 && (
+                    <div className="flex justify-between text-sm text-stone">
+                      <span>🐾 Pet fee</span>
+                      <span className="text-charcoal">${fmt(petFee)}</span>
                     </div>
                   )}
                   {taxAmount !== null && taxAmount > 0 && (
