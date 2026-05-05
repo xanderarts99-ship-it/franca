@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ propertyId?: string; checkIn?: string; checkOut?: string }>;
+  searchParams: Promise<{ propertyId?: string; checkIn?: string; checkOut?: string; includePetFee?: string }>;
 }
 
 function parseDateLocal(str: string): Date {
@@ -23,7 +23,8 @@ function parseDateLocal(str: string): Date {
 }
 
 export default async function CheckoutPage({ searchParams }: PageProps) {
-  const { propertyId, checkIn, checkOut } = await searchParams;
+  const { propertyId, checkIn, checkOut, includePetFee: includePetFeeParam } = await searchParams;
+  const includePetFee = includePetFeeParam === "true";
 
   if (!propertyId || !checkIn || !checkOut) redirect("/");
 
@@ -52,6 +53,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   let breakdown: {
     nightlyTotal: number;
     cleaningFee: number;
+    petFee: number;
     taxRate: number;
     taxAmount: number;
     totalAmount: number;
@@ -60,13 +62,14 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   };
 
   try {
-    breakdown = await calculateBookingTotal(propertyId, checkInDate, checkOutDate);
+    breakdown = await calculateBookingTotal(propertyId, checkInDate, checkOutDate, includePetFee);
   } catch {
     // Fallback to simple nightly rate calculation
     const nightlyTotal = Number(property.nightlyRate) * nights;
     breakdown = {
       nightlyTotal,
       cleaningFee: 0,
+      petFee: 0,
       taxRate: 0.06,
       taxAmount: 0,
       totalAmount: nightlyTotal,
@@ -112,6 +115,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             total={breakdown.totalAmount}
             cancellationPolicyText={property.cancellationPolicy?.policyText}
             cancellationPolicyName={property.cancellationPolicy?.name}
+            includePetFee={includePetFee}
           />
 
           {/* Right — Order summary */}
@@ -125,6 +129,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             nightlyRate={Number(property.nightlyRate)}
             nightlyTotal={breakdown.nightlyTotal}
             cleaningFee={breakdown.cleaningFee}
+            petFee={breakdown.petFee}
             taxRate={breakdown.taxRate}
             taxAmount={breakdown.taxAmount}
             total={breakdown.totalAmount}

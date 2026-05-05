@@ -16,6 +16,7 @@ interface OrderSummaryProps {
   nightlyRate: number;
   nightlyTotal: number;
   cleaningFee: number;
+  petFee: number;
   taxRate: number;
   taxAmount: number;
   total: number;
@@ -60,6 +61,7 @@ export default function OrderSummary({
   nightlyRate,
   nightlyTotal,
   cleaningFee,
+  petFee,
   taxRate,
   taxAmount,
   total,
@@ -139,6 +141,13 @@ export default function OrderSummary({
             <div className="flex justify-between text-stone">
               <span>Cleaning fee</span>
               <span className="text-charcoal">${fmt(cleaningFee)}</span>
+            </div>
+          )}
+
+          {petFee > 0 && (
+            <div className="flex justify-between text-stone">
+              <span>🐾 Pet fee</span>
+              <span className="text-charcoal">${fmt(petFee)}</span>
             </div>
           )}
 
