@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Star, Home, Users, BedDouble, Bed, Bath, Clock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Home, Users, BedDouble, Bed, Bath, AlertTriangle } from "lucide-react";
 import PhotoGrid from "@/components/public/PhotoGrid";
 import BookingWidget from "@/components/public/BookingWidget";
 import PropertyCalendar, { PropertyDateProvider } from "@/components/public/PropertyCalendar";
 import PropertyReviews from "@/components/public/PropertyReviews";
 import PropertyAmenities from "@/components/public/PropertyAmenities";
+import HouseRulesSection from "@/components/public/HouseRulesSection";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getPropertyReviewStats, getPropertyReviews } from "@/lib/reviews";
@@ -75,6 +76,8 @@ export default async function PropertyDetailPage({ params }: PageProps) {
         checkOutTime: true,
         checkInInstructions: true,
         checkOutInstructions: true,
+        petsAllowed: true,
+        petFee: true,
         cancellationPolicy: {
           select: { name: true, policyText: true },
         },
@@ -243,68 +246,16 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                 <PropertyCalendar propertyId={property.id} />
               </section>
 
-              {/* ── Check-in Information ────────────────────────── */}
-              {(property.checkInTime || property.checkOutTime || property.checkInInstructions || property.checkOutInstructions) && (
-                <section className="py-8 border-t border-warm-border">
-                  <div className="flex items-center gap-3 mb-5">
-                    <span className="shrink-0 w-9 h-9 bg-sand-light rounded-full flex items-center justify-center">
-                      <Clock size={16} className="text-sand" />
-                    </span>
-                    <h2 className="font-serif text-2xl font-semibold text-charcoal">
-                      Check-in Information
-                    </h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-                    {property.checkInTime && (
-                      <div className="bg-surface border border-warm-border rounded-xl p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-light mb-1">
-                          Check-in
-                        </p>
-                        <p className="text-sm font-semibold text-charcoal">
-                          From {property.checkInTime}
-                        </p>
-                      </div>
-                    )}
-                    {property.checkOutTime && (
-                      <div className="bg-surface border border-warm-border rounded-xl p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-light mb-1">
-                          Check-out
-                        </p>
-                        <p className="text-sm font-semibold text-charcoal">
-                          By {property.checkOutTime}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {(property.checkInInstructions || property.checkOutInstructions) && (
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-semibold text-charcoal">Additional Information</h3>
-                      {property.checkInInstructions && (
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-light mb-1.5">
-                            Check-in Instructions
-                          </p>
-                          <p className="text-sm text-stone leading-relaxed whitespace-pre-line">
-                            {property.checkInInstructions}
-                          </p>
-                        </div>
-                      )}
-                      {property.checkOutInstructions && (
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-light mb-1.5">
-                            Check-out Instructions
-                          </p>
-                          <p className="text-sm text-stone leading-relaxed whitespace-pre-line">
-                            {property.checkOutInstructions}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </section>
-              )}
+              {/* ── House Rules ─────────────────────────────────── */}
+              <HouseRulesSection
+                guests={property.guests}
+                petsAllowed={property.petsAllowed}
+                petFee={property.petFee !== null ? Number(property.petFee) : null}
+                checkInTime={property.checkInTime}
+                checkOutTime={property.checkOutTime}
+                checkInInstructions={property.checkInInstructions}
+                checkOutInstructions={property.checkOutInstructions}
+              />
 
               {/* ── Cancellation Policy ─────────────────────────── */}
               {property.cancellationPolicy && (
@@ -332,6 +283,8 @@ export default async function PropertyDetailPage({ params }: PageProps) {
               <BookingWidget
                 propertyId={property.id}
                 nightlyRate={Number(property.nightlyRate)}
+                petsAllowed={property.petsAllowed}
+                petFee={property.petFee !== null ? Number(property.petFee) : null}
               />
             </div>
           </div>
