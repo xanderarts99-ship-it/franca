@@ -80,6 +80,7 @@ export async function sendBookingConfirmationEmail(
   const cleaningFee = booking.cleaningFee ? Number(booking.cleaningFee) : null;
   const taxRate = booking.taxRate ? Number(booking.taxRate) : null;
   const taxAmount = booking.taxAmount ? Number(booking.taxAmount) : null;
+  const petFee = booking.petFee ? Number(booking.petFee) : null;
 
   const html = await render(
     BookingConfirmation({
@@ -93,6 +94,7 @@ export async function sendBookingConfirmationEmail(
       totalNights: booking.totalNights,
       nightlyTotal: nightlyTotal !== null ? formatAmount(nightlyTotal) : null,
       cleaningFee: cleaningFee !== null ? formatAmount(cleaningFee) : null,
+      petFee: petFee !== null ? formatAmount(petFee) : null,
       taxRate: taxRate !== null ? taxRate : null,
       taxAmount: taxAmount !== null ? formatAmount(taxAmount) : null,
       totalAmount: formatAmount(Number(booking.totalAmount)),
@@ -118,6 +120,7 @@ export async function sendGuestBookingRequest(booking: BookingWithProperty): Pro
   const cleaningFee = booking.cleaningFee ? Number(booking.cleaningFee) : null;
   const taxRate = booking.taxRate ? Number(booking.taxRate) : null;
   const taxAmount = booking.taxAmount ? Number(booking.taxAmount) : null;
+  const petFee = booking.petFee ? Number(booking.petFee) : null;
 
   const html = await render(
     GuestBookingRequestEmail({
@@ -131,6 +134,7 @@ export async function sendGuestBookingRequest(booking: BookingWithProperty): Pro
       totalAmount: formatAmount(Number(booking.totalAmount)),
       nightlyTotal: nightlyTotal !== null ? formatAmount(nightlyTotal) : null,
       cleaningFee: cleaningFee !== null ? formatAmount(cleaningFee) : null,
+      petFee: petFee !== null ? formatAmount(petFee) : null,
       taxRate: taxRate !== null ? taxRate : null,
       taxAmount: taxAmount !== null ? formatAmount(taxAmount) : null,
     })
@@ -163,6 +167,7 @@ export async function sendAdminNewBookingRequest(
   const cleaningFee = booking.cleaningFee ? Number(booking.cleaningFee) : null;
   const taxRate = booking.taxRate ? Number(booking.taxRate) : null;
   const taxAmount = booking.taxAmount ? Number(booking.taxAmount) : null;
+  const petFee = booking.petFee ? Number(booking.petFee) : null;
   const totalAmountFormatted = formatAmount(Number(booking.totalAmount));
 
   const html = await render(
@@ -179,6 +184,7 @@ export async function sendAdminNewBookingRequest(
       bookingUrl,
       nightlyTotal: nightlyTotal !== null ? formatAmount(nightlyTotal) : null,
       cleaningFee: cleaningFee !== null ? formatAmount(cleaningFee) : null,
+      petFee: petFee !== null ? formatAmount(petFee) : null,
       taxRate: taxRate !== null ? taxRate : null,
       taxAmount: taxAmount !== null ? formatAmount(taxAmount) : null,
     })

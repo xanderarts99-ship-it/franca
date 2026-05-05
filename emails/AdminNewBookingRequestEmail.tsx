@@ -41,6 +41,7 @@ export interface AdminNewBookingRequestEmailProps {
   bookingUrl: string;
   nightlyTotal?: string | null;
   cleaningFee?: string | null;
+  petFee?: string | null;
   taxRate?: number | null;
   taxAmount?: string | null;
 }
@@ -60,6 +61,7 @@ export default function AdminNewBookingRequestEmail({
   bookingUrl,
   nightlyTotal,
   cleaningFee,
+  petFee,
   taxRate,
   taxAmount,
 }: AdminNewBookingRequestEmailProps) {
@@ -276,6 +278,9 @@ export default function AdminNewBookingRequestEmail({
                   <PriceRow label="Nightly total" amount={nightlyTotal} />
                   {cleaningFee != null && (
                     <PriceRow label="Cleaning fee" amount={cleaningFee} />
+                  )}
+                  {petFee != null && (
+                    <PriceRow label="Pet fee" amount={petFee} />
                   )}
                   {taxAmount != null && taxPct !== null && (
                     <PriceRow label={`Tax (${taxPct}%)`} amount={taxAmount} />

@@ -40,6 +40,7 @@ export interface BookingConfirmationProps {
   taxRate: number | null;
   taxAmount: string | null;
   totalAmount: string;
+  petFee?: string | null;
   cancellationPolicyText?: string;
   cancellationPolicyName?: string;
   checkInInstructions?: string;
@@ -61,6 +62,7 @@ export default function BookingConfirmation({
   taxRate,
   taxAmount,
   totalAmount,
+  petFee,
   cancellationPolicyText,
   cancellationPolicyName,
   checkInInstructions,
@@ -164,6 +166,9 @@ export default function BookingConfirmation({
                 <PriceRow label="Nightly total" amount={nightlyTotal} />
                 {cleaningFee !== null && (
                   <PriceRow label="Cleaning fee" amount={cleaningFee} />
+                )}
+                {petFee != null && (
+                  <PriceRow label="Pet fee" amount={petFee} />
                 )}
                 {taxAmount !== null && taxPct !== null && (
                   <PriceRow label={`Tax (${taxPct}%)`} amount={taxAmount} />
