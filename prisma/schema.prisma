@@ -57,6 +57,8 @@ model Property {
   checkInInstructions  String?
   checkOutInstructions String?
   taxRate              Decimal             @default(0.06) @db.Decimal(5, 4)
+  petsAllowed          Boolean             @default(true)
+  petFee               Decimal?            @db.Decimal(10, 2)
   cancellationPolicyId String?
   cancellationPolicy   CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id])
   blockedDates         BlockedDate[]
@@ -96,6 +98,7 @@ model Booking {
   cleaningFee           Decimal?      @db.Decimal(10, 2)
   taxRate               Decimal?      @db.Decimal(5, 4)
   taxAmount             Decimal?      @db.Decimal(10, 2)
+  petFee               Decimal?      @db.Decimal(10, 2)
   totalAmount           Decimal
   status                BookingStatus @default(PENDING_PAYMENT)
   stripePaymentIntentId String?       @unique
