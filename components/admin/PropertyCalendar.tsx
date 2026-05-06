@@ -42,16 +42,15 @@ function todayKey() {
 }
 
 function getDatesInRange(a: string, b: string): string[] {
-  const [ay, am, ad] = a.split("-").map(Number);
-  const [by, bm, bd] = b.split("-").map(Number);
-  const t1 = new Date(ay, am - 1, ad).getTime();
-  const t2 = new Date(by, bm - 1, bd).getTime();
-  const start = Math.min(t1, t2);
-  const end   = Math.max(t1, t2);
+  const [startKey, endKey] = a <= b ? [a, b] : [b, a];
+  const [sy, sm, sd] = startKey.split("-").map(Number);
   const dates: string[] = [];
-  for (let t = start; t <= end; t += 86_400_000) {
-    const d = new Date(t);
-    dates.push(toKey(d.getFullYear(), d.getMonth(), d.getDate()));
+  const cur = new Date(sy, sm - 1, sd);
+  while (true) {
+    const key = toKey(cur.getFullYear(), cur.getMonth(), cur.getDate());
+    dates.push(key);
+    if (key === endKey) break;
+    cur.setDate(cur.getDate() + 1);
   }
   return dates;
 }

@@ -39,8 +39,8 @@ export async function GET(
   }
 
   const { month, year } = parsed.data;
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0);
+  const startDate = new Date(Date.UTC(year, month - 1, 1));
+  const endDate = new Date(Date.UTC(year, month, 0));
 
   const [property, pricing] = await Promise.all([
     prisma.property.findUnique({ where: { id }, select: { nightlyRate: true } }),
@@ -88,7 +88,7 @@ export async function POST(
 
   const { date, price } = parsed.data;
   const [y, m, d] = date.split("-").map(Number);
-  const dateObj = new Date(y, m - 1, d);
+  const dateObj = new Date(Date.UTC(y, m - 1, d));
 
   const property = await prisma.property.findUnique({ where: { id }, select: { id: true } });
   if (!property) return NextResponse.json({ error: "Property not found" }, { status: 404 });
@@ -130,7 +130,7 @@ export async function DELETE(
 
   const { date } = parsed.data;
   const [y, m, d] = date.split("-").map(Number);
-  const dateObj = new Date(y, m - 1, d);
+  const dateObj = new Date(Date.UTC(y, m - 1, d));
 
   await prisma.propertyPricing.deleteMany({
     where: { propertyId: id, date: dateObj },

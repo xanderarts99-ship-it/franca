@@ -14,9 +14,9 @@ const deleteSchema = z.object({
   dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(365),
 });
 
-function parseDateLocal(str: string): Date {
+function parseDateUTC(str: string): Date {
   const [y, m, d] = str.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(Date.UTC(y, m - 1, d));
 }
 
 export async function POST(
@@ -46,7 +46,7 @@ export async function POST(
   const { dates, price } = parsed.data;
 
   for (const dateStr of dates) {
-    const dateObj = parseDateLocal(dateStr);
+    const dateObj = parseDateUTC(dateStr);
     await prisma.propertyPricing.upsert({
       where: { propertyId_date: { propertyId: id, date: dateObj } },
       update: { price },
@@ -81,7 +81,7 @@ export async function DELETE(
   }
 
   const { dates } = parsed.data;
-  const dateObjs = dates.map(parseDateLocal);
+  const dateObjs = dates.map(parseDateUTC);
 
   const result = await prisma.propertyPricing.deleteMany({
     where: {

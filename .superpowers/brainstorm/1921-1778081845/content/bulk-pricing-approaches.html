@@ -1,0 +1,351 @@
+<style>
+  :root {
+    --sand: #C9A96E;
+    --sand-light: #F5ECD7;
+    --cream: #FAF7F2;
+    --charcoal: #2C2C2C;
+    --stone: #6B6B6B;
+    --stone-light: #A0A0A0;
+    --warm-border: #E8E0D5;
+    --amber-50: #FFFBEB;
+    --amber-100: #FEF3C7;
+    --amber-600: #D97706;
+  }
+
+  body { background: #F0EDE8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  h2 { font-size: 1.4rem; font-weight: 700; color: var(--charcoal); margin-bottom: 4px; }
+  .subtitle { color: var(--stone); font-size: 0.9rem; margin-bottom: 28px; }
+
+  .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .options { grid-template-columns: 1fr; } }
+
+  .option {
+    background: white;
+    border: 2px solid var(--warm-border);
+    border-radius: 16px;
+    padding: 0;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    overflow: hidden;
+  }
+  .option:hover { border-color: var(--sand); box-shadow: 0 4px 20px rgba(201,169,110,0.15); }
+  .option.selected { border-color: var(--sand); box-shadow: 0 0 0 4px rgba(201,169,110,0.15); }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--warm-border);
+  }
+  .letter {
+    width: 26px; height: 26px;
+    background: var(--charcoal); color: white;
+    border-radius: 50%;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .option.selected .letter { background: var(--sand); }
+  .option-label h3 { font-size: 0.9rem; font-weight: 700; color: var(--charcoal); margin: 0; }
+  .option-label p { font-size: 0.75rem; color: var(--stone); margin: 2px 0 0; }
+
+  .mockup-area {
+    padding: 16px;
+    background: var(--cream);
+    min-height: 220px;
+  }
+
+  /* ── Shared mini-calendar styles ── */
+  .mini-cal {
+    background: white;
+    border: 1px solid var(--warm-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--warm-border);
+  }
+  .cal-header span { font-size: 0.8rem; font-weight: 600; color: var(--charcoal); }
+  .cal-header-btns { display: flex; gap: 4px; }
+  .cal-nav { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--warm-border); background: white; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--stone); cursor: pointer; }
+
+  .cal-days-header {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    padding: 4px 8px 0;
+  }
+  .cal-days-header span { text-align: center; font-size: 9px; font-weight: 600; color: var(--stone-light); text-transform: uppercase; padding: 2px 0; }
+
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    padding: 2px 8px 8px;
+    gap: 1px;
+  }
+  .cal-cell {
+    height: 32px;
+    border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 500; color: var(--charcoal);
+    position: relative;
+  }
+  .cal-cell.past { color: rgba(44,44,44,0.25); }
+  .cal-cell.custom { background: var(--amber-50); }
+  .cal-cell.custom .price { color: var(--amber-600); font-weight: 600; }
+  .cal-cell.selected-range { background: #E8F4FD; }
+  .cal-cell.range-start { background: var(--sand); color: white; border-radius: 6px 0 0 6px; }
+  .cal-cell.range-end { background: var(--sand); color: white; border-radius: 0 6px 6px 0; }
+  .cal-cell.range-start.range-end { border-radius: 6px; }
+  .cal-cell .price { font-size: 8px; color: var(--stone-light); line-height: 1; }
+  .cal-cell.range-start .price, .cal-cell.range-end .price { color: rgba(255,255,255,0.7); }
+  .cal-cell.selected-range .price { color: #2563EB; font-weight: 600; }
+
+  /* ── Option A: Form Panel ── */
+  .form-panel {
+    background: white;
+    border: 1px solid var(--sand);
+    border-radius: 10px;
+    padding: 10px 12px 12px;
+    margin-bottom: 10px;
+  }
+  .form-panel-header { font-size: 0.7rem; font-weight: 700; color: var(--charcoal); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap-width: 6px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr 80px 80px; gap: 6px; align-items: end; }
+  .form-field label { display: block; font-size: 9px; font-weight: 600; color: var(--stone); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+  .form-field input {
+    width: 100%; box-sizing: border-box;
+    border: 1px solid var(--warm-border); border-radius: 7px;
+    padding: 5px 8px; font-size: 11px; color: var(--charcoal);
+    background: var(--cream);
+  }
+  .form-field .input-wrap { display: flex; align-items: center; border: 1px solid var(--warm-border); border-radius: 7px; background: var(--cream); overflow: hidden; }
+  .form-field .input-wrap span { padding: 0 5px; color: var(--stone); font-size: 11px; }
+  .form-field .input-wrap input { border: none; background: transparent; padding: 5px 4px; font-size: 11px; color: var(--charcoal); width: 100%; }
+  .btn-apply { background: var(--sand); color: white; border: none; border-radius: 7px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-reset { background: white; color: var(--stone); border: 1px solid var(--warm-border); border-radius: 7px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer; }
+
+  /* ── Option B: Two-click ── */
+  .instruction-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 20px;
+    padding: 4px 10px; font-size: 10px; color: #1D4ED8; font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .step-dot { width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+  .step-dot.active { background: var(--sand); color: white; }
+  .step-dot.done { background: #22C55E; color: white; }
+  .step-dot.pending { background: var(--warm-border); color: var(--stone-light); }
+  .steps-row { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; font-size: 10px; color: var(--stone); }
+  .steps-row .arrow { color: var(--stone-light); }
+
+  /* ── Option C: Recurring pattern ── */
+  .dow-filter { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .dow-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--warm-border);
+    background: white; font-size: 10px; font-weight: 600; color: var(--stone); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dow-btn.on { background: var(--charcoal); color: white; border-color: var(--charcoal); }
+
+  /* pros/cons */
+  .option-footer { padding: 10px 14px 12px; display: flex; gap: 12px; }
+  .pro-con-col { flex: 1; }
+  .pro-con-col h4 { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+  .pro-con-col.pros h4 { color: #16A34A; }
+  .pro-con-col.cons h4 { color: #DC2626; }
+  .pro-con-col ul { list-style: none; margin: 0; padding: 0; }
+  .pro-con-col li { font-size: 10px; color: var(--stone); margin-bottom: 3px; padding-left: 10px; position: relative; }
+  .pro-con-col.pros li::before { content: '✓'; position: absolute; left: 0; color: #16A34A; font-size: 9px; }
+  .pro-con-col.cons li::before { content: '×'; position: absolute; left: 0; color: #DC2626; font-size: 9px; }
+
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-left: 6px; }
+  .tag.rec { background: #DCFCE7; color: #15803D; }
+  .tag.simple { background: #EFF6FF; color: #1D4ED8; }
+</style>
+
+<h2>How should bulk pricing work?</h2>
+<p class="subtitle">Three approaches to selecting and pricing multiple dates at once. Click to select your preferred direction.</p>
+
+<div class="options">
+
+  <!-- Option A: Date Range Form -->
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="option-label">
+      <div class="letter">A</div>
+      <div>
+        <h3>Date Range Form <span class="tag simple">Simple</span></h3>
+        <p>Explicit From / To inputs above the calendar</p>
+      </div>
+    </div>
+    <div class="mockup-area">
+      <!-- Form panel -->
+      <div class="form-panel">
+        <div class="form-panel-header">📅 Set Date Range Price</div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>From</label>
+            <input type="text" value="May 6, 2025" readonly />
+          </div>
+          <div class="form-field">
+            <label>To</label>
+            <input type="text" value="May 10, 2025" readonly />
+          </div>
+          <div class="form-field">
+            <label>Price</label>
+            <div class="input-wrap"><span>$</span><input type="text" value="100" readonly /></div>
+          </div>
+          <div class="form-field" style="display:flex;gap:4px;">
+            <button class="btn-apply">Apply</button>
+            <button class="btn-reset">Reset</button>
+          </div>
+        </div>
+      </div>
+      <!-- Small calendar showing result -->
+      <div class="mini-cal">
+        <div class="cal-header">
+          <span>May 2025</span>
+          <div class="cal-header-btns"><div class="cal-nav">‹</div><div class="cal-nav">›</div></div>
+        </div>
+        <div class="cal-days-header">
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-cell"></div><div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell past">1<span class="price">$95</span></div>
+          <div class="cal-cell past">2<span class="price">$95</span></div>
+          <div class="cal-cell past">3<span class="price">$95</span></div>
+          <div class="cal-cell past">4<span class="price">$95</span></div>
+          <div class="cal-cell past">5<span class="price">$95</span></div>
+          <div class="cal-cell range-start">6<span class="price">$100</span></div>
+          <div class="cal-cell selected-range">7<span class="price">$100</span></div>
+          <div class="cal-cell selected-range">8<span class="price">$100</span></div>
+          <div class="cal-cell selected-range">9<span class="price">$100</span></div>
+          <div class="cal-cell range-end">10<span class="price">$100</span></div>
+          <div class="cal-cell">11<span class="price">$95</span></div>
+          <div class="cal-cell">12<span class="price">$95</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="option-footer">
+      <div class="pro-con-col pros"><h4>Pros</h4><ul><li>Easy to understand</li><li>Works across months</li><li>Keyboard-friendly</li></ul></div>
+      <div class="pro-con-col cons"><h4>Cons</h4><ul><li>Requires typing dates</li><li>Separate from calendar</li></ul></div>
+    </div>
+  </div>
+
+  <!-- Option B: Two-click calendar -->
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="option-label">
+      <div class="letter">B</div>
+      <div>
+        <h3>Two-Click Calendar <span class="tag rec">Recommended</span></h3>
+        <p>Click start date, click end date, set price</p>
+      </div>
+    </div>
+    <div class="mockup-area">
+      <div class="steps-row">
+        <span class="step-dot done">✓</span>
+        <span>Clicked <strong>May 6</strong> (start)</span>
+        <span class="arrow">→</span>
+        <span class="step-dot active">2</span>
+        <span>Now click end date</span>
+      </div>
+      <div class="mini-cal">
+        <div class="cal-header">
+          <span>May 2025</span>
+          <div class="cal-header-btns"><div class="cal-nav">‹</div><div class="cal-nav">›</div></div>
+        </div>
+        <div class="cal-days-header">
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-cell"></div><div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell past">1<span class="price">$95</span></div>
+          <div class="cal-cell past">2<span class="price">$95</span></div>
+          <div class="cal-cell past">3<span class="price">$95</span></div>
+          <div class="cal-cell past">4<span class="price">$95</span></div>
+          <div class="cal-cell past">5<span class="price">$95</span></div>
+          <div class="cal-cell range-start">6<span class="price">$95</span></div>
+          <div class="cal-cell selected-range">7<span class="price">$95</span></div>
+          <div class="cal-cell selected-range">8<span class="price">$95</span></div>
+          <div class="cal-cell selected-range">9<span class="price">$95</span></div>
+          <div class="cal-cell range-end" style="outline:2px dashed var(--sand);outline-offset:-2px;cursor:pointer;">10<span class="price">→ click</span></div>
+          <div class="cal-cell">11<span class="price">$95</span></div>
+          <div class="cal-cell">12<span class="price">$95</span></div>
+        </div>
+      </div>
+      <p style="font-size:10px;color:var(--stone);margin-top:8px;margin-bottom:0;">
+        After clicking end date → price modal opens. <br>Works across months (navigate then click).
+      </p>
+    </div>
+    <div class="option-footer">
+      <div class="pro-con-col pros"><h4>Pros</h4><ul><li>Stays in the calendar</li><li>Works across months</li><li>Mobile-friendly</li><li>Intuitive flow</li></ul></div>
+      <div class="pro-con-col cons"><h4>Cons</h4><ul><li>More clicks to cancel</li></ul></div>
+    </div>
+  </div>
+
+  <!-- Option C: Day-of-week pattern -->
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="option-label">
+      <div class="letter">C</div>
+      <div>
+        <h3>Day-of-Week Pattern</h3>
+        <p>Pick which days + a date range, apply to all</p>
+      </div>
+    </div>
+    <div class="mockup-area">
+      <div class="form-panel">
+        <div class="form-panel-header" style="margin-bottom:6px;">Apply price to specific days</div>
+        <div class="dow-filter">
+          <div class="dow-btn">Su</div>
+          <div class="dow-btn on">Mo</div>
+          <div class="dow-btn on">Tu</div>
+          <div class="dow-btn on">We</div>
+          <div class="dow-btn on">Th</div>
+          <div class="dow-btn on">Fr</div>
+          <div class="dow-btn">Sa</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:6px;align-items:end;">
+          <div class="form-field"><label>From</label><input type="text" value="May 2025" readonly /></div>
+          <div class="form-field"><label>To</label><input type="text" value="May 2025" readonly /></div>
+          <div class="form-field"><label>Price</label><div class="input-wrap"><span>$</span><input type="text" value="100" readonly /></div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn-apply" style="flex:1;">Apply to Mon–Fri</button>
+          <button class="btn-reset">Reset</button>
+        </div>
+      </div>
+      <div class="mini-cal">
+        <div class="cal-header">
+          <span>May 2025</span>
+          <div class="cal-header-btns"><div class="cal-nav">‹</div><div class="cal-nav">›</div></div>
+        </div>
+        <div class="cal-days-header">
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-cell"></div><div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell past">1</div>
+          <div class="cal-cell past">2</div>
+          <div class="cal-cell past">3</div>
+          <div class="cal-cell past">4</div>
+          <div class="cal-cell past">5</div>
+          <div class="cal-cell custom">6<span class="price">$100</span></div>
+          <div class="cal-cell custom">7<span class="price">$100</span></div>
+          <div class="cal-cell custom">8<span class="price">$100</span></div>
+          <div class="cal-cell custom">9<span class="price">$100</span></div>
+          <div class="cal-cell custom">10<span class="price">$100</span></div>
+          <div class="cal-cell">11<span class="price">$95</span></div>
+          <div class="cal-cell">12<span class="price">$95</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="option-footer">
+      <div class="pro-con-col pros"><h4>Pros</h4><ul><li>Powerful for weekday/weekend pricing</li><li>Covers whole months fast</li></ul></div>
+      <div class="pro-con-col cons"><h4>Cons</h4><ul><li>More complex UI</li><li>Overkill for simple ranges</li></ul></div>
+    </div>
+  </div>
+
+</div>
