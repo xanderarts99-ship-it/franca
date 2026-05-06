@@ -123,7 +123,8 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
   }
 
   const canBook = checkIn && checkOut && nights > 0 && !loadingPricing && !navigating;
-  const showPetSection = petsAllowed && petFee != null && petFee > 0;
+  const showPetFeeToggle = petsAllowed && petFee != null && petFee > 0;
+  const showPetsWelcome = petsAllowed && !showPetFeeToggle;
 
   return (
     <div className="bg-surface border border-warm-border rounded-card shadow-lg p-6 sticky top-24">
@@ -238,8 +239,8 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
         </div>
       )}
 
-      {/* Pet section — only shown if petsAllowed AND petFee > 0 is configured */}
-      {showPetSection && (
+      {/* Pet fee toggle — petsAllowed AND a fee is configured */}
+      {showPetFeeToggle && (
         <div className="border border-warm-border rounded-xl px-4 py-3.5 mb-4 bg-cream/50">
           <div className="flex items-center gap-2 mb-1">
             <PawPrint size={14} className="text-sand shrink-0" />
@@ -260,6 +261,17 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
               <span>Pet fee added to your total</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Pets welcome notice — petsAllowed but no fee configured */}
+      {showPetsWelcome && (
+        <div className="flex items-center gap-2.5 border border-warm-border rounded-xl px-4 py-3 mb-4 bg-cream/50">
+          <PawPrint size={14} className="text-sand shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-charcoal">Pets welcome</p>
+            <p className="text-xs text-stone mt-0.5">No additional pet fee for this property.</p>
+          </div>
         </div>
       )}
 
