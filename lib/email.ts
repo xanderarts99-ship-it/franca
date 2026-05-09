@@ -111,6 +111,7 @@ export async function sendBookingConfirmationEmail(
       cancellationPolicyText: booking.property.cancellationPolicy?.policyText ?? undefined,
       cancellationPolicyName: booking.property.cancellationPolicy?.name ?? undefined,
       checkInInstructions: booking.property.checkInInstructions ?? undefined,
+      paymentNotes: booking.paymentNotes ?? undefined,
     })
   );
 

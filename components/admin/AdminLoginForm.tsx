@@ -40,7 +40,12 @@ export default function AdminLoginForm() {
       });
 
       if (!result?.ok || result?.error) {
-        setServerError("Invalid email or password. Please try again.");
+        const isRateLimited = result?.error?.toLowerCase().includes("too many");
+        setServerError(
+          isRateLimited
+            ? "Too many failed attempts. Please try again in 15 minutes."
+            : "Invalid email or password. Please try again."
+        );
         setSubmitting(false);
         return;
       }

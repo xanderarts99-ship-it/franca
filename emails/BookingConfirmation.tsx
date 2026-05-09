@@ -45,6 +45,7 @@ export interface BookingConfirmationProps {
   cancellationPolicyText?: string;
   cancellationPolicyName?: string;
   checkInInstructions?: string;
+  paymentNotes?: string;
 }
 
 const sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
@@ -68,6 +69,7 @@ export default function BookingConfirmation({
   cancellationPolicyText,
   cancellationPolicyName,
   checkInInstructions,
+  paymentNotes,
 }: BookingConfirmationProps) {
   const taxPct = taxRate !== null ? Math.round(taxRate * 100) : null;
 
@@ -181,6 +183,36 @@ export default function BookingConfirmation({
                   <PriceRow label={`Tax (${taxPct}%)`} amount={taxAmount} />
                 )}
                 <PriceRow label="Total Charged" amount={totalAmount} isTotal />
+              </SectionCard>
+            )}
+
+            {/* Admin notes */}
+            {paymentNotes && (
+              <SectionCard>
+                <Text
+                  style={{
+                    color: brandColors.muted,
+                    fontFamily: sans,
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    letterSpacing: "1px",
+                    textTransform: "uppercase" as const,
+                    margin: "0 0 8px",
+                  }}
+                >
+                  NOTE FROM HOST
+                </Text>
+                <Text
+                  style={{
+                    color: brandColors.bodyText,
+                    fontFamily: sans,
+                    fontSize: "15px",
+                    lineHeight: "1.6",
+                    margin: "0",
+                  }}
+                >
+                  {paymentNotes}
+                </Text>
               </SectionCard>
             )}
 
