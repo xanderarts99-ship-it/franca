@@ -38,6 +38,7 @@ export interface GuestBookingRequestEmailProps {
   nightlyTotal?: string | null;
   cleaningFee?: string | null;
   petFee?: string | null;
+  petCount?: number;
   taxRate?: number | null;
   taxAmount?: string | null;
 }
@@ -55,6 +56,7 @@ export default function GuestBookingRequestEmail({
   nightlyTotal,
   cleaningFee,
   petFee,
+  petCount,
   taxRate,
   taxAmount,
 }: GuestBookingRequestEmailProps) {
@@ -160,7 +162,12 @@ export default function GuestBookingRequestEmail({
                     <PriceRow label="Cleaning fee" amount={cleaningFee} />
                   )}
                   {petFee != null && (
-                    <PriceRow label="Pet fee" amount={petFee} />
+                    <PriceRow
+                      label={petCount && petCount > 0
+                        ? `Pet fee (${petCount} ${petCount === 1 ? "pet" : "pets"})`
+                        : "Pet fee"}
+                      amount={petFee}
+                    />
                   )}
                   {taxAmount != null && taxPct !== null && (
                     <PriceRow label={`Tax (${taxPct}%)`} amount={taxAmount} />

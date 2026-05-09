@@ -1,5 +1,7 @@
 import { prisma } from "./prisma";
 
+const DEFAULT_PET_FEE_PER_PET = 100; // USD
+
 export interface NightlyBreakdownItem {
   date: string;
   price: number;
@@ -15,6 +17,8 @@ export interface BookingTotalResult {
   nightlyTotal: number;
   nightlyBreakdown: NightlyBreakdownItem[];
   cleaningFee: number;
+  petFeePerPet: number;
+  petCount: number;
   petFee: number;
   taxRate: number;
   taxAmount: number;
@@ -86,13 +90,13 @@ export async function calculateBookingTotal(
   propertyId: string,
   checkIn: Date,
   checkOut: Date,
-  includePetFee: boolean = false
+  petCount: number = 0
 ): Promise<BookingTotalResult> {
   const [nightlyResult, property] = await Promise.all([
     calculateNightlyTotal(propertyId, checkIn, checkOut),
     prisma.property.findUnique({
       where: { id: propertyId },
-      select: { cleaningFee: true, taxRate: true, petsAllowed: true, petFee: true },
+      select: { cleaningFee: true, taxRate: true, petsAllowed: true, petFeeAmount: true },
     }),
   ]);
 
@@ -100,9 +104,17 @@ export async function calculateBookingTotal(
 
   const nightlyTotal = nightlyResult.total;
   const cleaningFee = round2(Number(property.cleaningFee ?? 0));
-  const petFee = includePetFee && property.petsAllowed && property.petFee
-    ? round2(Number(property.petFee))
-    : 0;
+
+  const petFeePerPet =
+    property.petsAllowed && petCount > 0
+      ? Number(property.petFeeAmount ?? DEFAULT_PET_FEE_PER_PET)
+      : 0;
+
+  const petFee =
+    petCount > 0 && property.petsAllowed
+      ? round2(petCount * petFeePerPet)
+      : 0;
+
   const taxRate = round2(Number(property.taxRate ?? 0.06));
   const taxAmount = round2((nightlyTotal + cleaningFee + petFee) * taxRate);
   const totalAmount = round2(nightlyTotal + cleaningFee + petFee + taxAmount);
@@ -111,6 +123,8 @@ export async function calculateBookingTotal(
     nightlyTotal,
     nightlyBreakdown: nightlyResult.breakdown,
     cleaningFee,
+    petFeePerPet,
+    petCount,
     petFee,
     taxRate,
     taxAmount,
@@ -124,8 +138,8 @@ export async function validateBookingAmount(
   checkIn: Date,
   checkOut: Date,
   submittedTotal: number,
-  includePetFee: boolean = false
+  petCount: number = 0
 ): Promise<boolean> {
-  const result = await calculateBookingTotal(propertyId, checkIn, checkOut, includePetFee);
+  const result = await calculateBookingTotal(propertyId, checkIn, checkOut, petCount);
   return Math.abs(result.totalAmount - submittedTotal) <= 1.0;
 }

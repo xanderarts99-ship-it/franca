@@ -35,6 +35,8 @@ export default async function PropertyEditPage({ params }: PageProps) {
         checkInInstructions: true,
         checkOutInstructions: true,
         cancellationPolicyId: true,
+        petsAllowed: true,
+        petFeeAmount: true,
       },
     }),
     prisma.cancellationPolicy.findMany({
@@ -70,6 +72,7 @@ export default async function PropertyEditPage({ params }: PageProps) {
           ...property,
           nightlyRate: Number(property.nightlyRate),
           cleaningFee: property.cleaningFee !== null ? Number(property.cleaningFee) : null,
+          petFeeAmount: property.petFeeAmount !== null ? Number(property.petFeeAmount) : null,
         }}
         cancellationPolicies={cancellationPolicies}
       />

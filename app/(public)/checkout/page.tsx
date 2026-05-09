@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ propertyId?: string; checkIn?: string; checkOut?: string; includePetFee?: string }>;
+  searchParams: Promise<{ propertyId?: string; checkIn?: string; checkOut?: string; petCount?: string }>;
 }
 
 function parseDateLocal(str: string): Date {
@@ -23,8 +23,8 @@ function parseDateLocal(str: string): Date {
 }
 
 export default async function CheckoutPage({ searchParams }: PageProps) {
-  const { propertyId, checkIn, checkOut, includePetFee: includePetFeeParam } = await searchParams;
-  const includePetFee = includePetFeeParam === "true";
+  const { propertyId, checkIn, checkOut, petCount: petCountParam } = await searchParams;
+  const petCount = Math.min(3, Math.max(0, parseInt(petCountParam ?? "0", 10) || 0));
 
   if (!propertyId || !checkIn || !checkOut) redirect("/");
 
@@ -62,7 +62,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   };
 
   try {
-    breakdown = await calculateBookingTotal(propertyId, checkInDate, checkOutDate, includePetFee);
+    breakdown = await calculateBookingTotal(propertyId, checkInDate, checkOutDate, petCount);
   } catch {
     // Fallback to simple nightly rate calculation
     const nightlyTotal = Number(property.nightlyRate) * nights;
@@ -115,7 +115,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             total={breakdown.totalAmount}
             cancellationPolicyText={property.cancellationPolicy?.policyText}
             cancellationPolicyName={property.cancellationPolicy?.name}
-            includePetFee={includePetFee}
+            petCount={petCount}
           />
 
           {/* Right — Order summary */}
@@ -130,6 +130,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
             nightlyTotal={breakdown.nightlyTotal}
             cleaningFee={breakdown.cleaningFee}
             petFee={breakdown.petFee}
+            petCount={petCount}
             taxRate={breakdown.taxRate}
             taxAmount={breakdown.taxAmount}
             total={breakdown.totalAmount}

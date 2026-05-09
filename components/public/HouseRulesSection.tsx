@@ -24,7 +24,7 @@ function isNegativeRule(rule: string): boolean {
 interface HouseRulesSectionProps {
   guests: number;
   petsAllowed: boolean;
-  petFee: number | null;
+  petFeeAmount: number | null;
   checkInTime: string | null;
   checkOutTime: string | null;
   checkInInstructions: string | null;
@@ -32,12 +32,12 @@ interface HouseRulesSectionProps {
 }
 
 export default function HouseRulesSection({
-  guests, petsAllowed, petFee, checkInTime, checkOutTime,
+  guests, petsAllowed, petFeeAmount, checkInTime, checkOutTime,
   checkInInstructions, checkOutInstructions,
 }: HouseRulesSectionProps) {
   const [open, setOpen] = useState(false);
   const rules = getHouseRules({
-    guests, petsAllowed, petFee, checkInTime, checkOutTime,
+    guests, petsAllowed, petFeeAmount, checkInTime, checkOutTime,
     checkInInstructions, checkOutInstructions,
   });
 

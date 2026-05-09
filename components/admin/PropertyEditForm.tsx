@@ -62,7 +62,7 @@ interface Property {
   checkOutInstructions: string | null;
   cancellationPolicyId: string | null;
   petsAllowed: boolean;
-  petFee: number | null;
+  petFeeAmount: number | null;
 }
 
 interface CancellationPolicy {
@@ -279,7 +279,7 @@ export default function PropertyEditForm({
   );
   const [petsAllowed, setPetsAllowed] = useState<boolean>(property.petsAllowed);
   const [petFeeValue, setPetFeeValue] = useState<string>(
-    property.petFee != null ? String(property.petFee) : ""
+    property.petFeeAmount != null ? String(property.petFeeAmount) : ""
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -468,7 +468,7 @@ export default function PropertyEditForm({
         checkOutInstructions: (data.checkOutInstructions as string || null),
         cancellationPolicyId: cancellationPolicyId || null,
         petsAllowed,
-        petFee: petFeeValue !== "" ? Number(petFeeValue) : null,
+        petFeeAmount: petFeeValue !== "" ? Number(petFeeValue) : null,
       };
       const res = await fetch(`/api/admin/properties/${property.id}`, {
         method: "PATCH",
@@ -596,7 +596,9 @@ export default function PropertyEditForm({
             <p className="text-sm font-medium text-charcoal">Pets Allowed</p>
             {petsAllowed ? (
               <p className="text-xs text-emerald-600 mt-0.5">
-                Guests may bring pets. Set the fee below.
+                {petFeeValue !== ""
+                  ? `Guests may bring pets. A fee of $${petFeeValue} per pet applies.`
+                  : "Guests may bring pets. Default fee of $100 per pet applies."}
               </p>
             ) : (
               <p className="text-xs text-red-500 mt-0.5">
@@ -608,7 +610,11 @@ export default function PropertyEditForm({
             type="button"
             role="switch"
             aria-checked={petsAllowed}
-            onClick={() => setPetsAllowed((v) => !v)}
+            onClick={() => {
+              const next = !petsAllowed;
+              setPetsAllowed(next);
+              if (!next) setPetFeeValue("");
+            }}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
               petsAllowed ? "bg-sand" : "bg-stone-light/40"
@@ -621,32 +627,33 @@ export default function PropertyEditForm({
           </button>
         </div>
 
-        {/* Pet Fee input */}
-        <div>
-          <label className="block text-xs font-semibold text-stone-light uppercase tracking-wide mb-1.5">
-            Pet Fee (USD per stay)
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone text-sm">$</span>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={petFeeValue}
-              onChange={(e) => setPetFeeValue(e.target.value)}
-              placeholder="e.g. 100"
-              disabled={!petsAllowed}
-              className={cn(
-                "w-full pl-7 pr-4 py-2.5 border rounded-lg text-sm text-charcoal bg-surface",
-                "focus:outline-none focus:ring-2 focus:ring-sand/50 focus:border-sand",
-                !petsAllowed && "opacity-40 cursor-not-allowed"
-              )}
-            />
+        {/* Pet Fee Per Pet input */}
+        {petsAllowed && (
+          <div>
+            <label className="block text-xs font-semibold text-stone-light uppercase tracking-wide mb-1.5">
+              Pet Fee Per Pet (USD)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                max="1000"
+                step="0.01"
+                value={petFeeValue}
+                onChange={(e) => setPetFeeValue(e.target.value)}
+                placeholder="100"
+                className={cn(
+                  "w-full pl-7 pr-4 py-2.5 border rounded-lg text-sm text-charcoal bg-surface",
+                  "focus:outline-none focus:ring-2 focus:ring-sand/50 focus:border-sand"
+                )}
+              />
+            </div>
+            <p className="text-xs text-stone mt-1">
+              Fee charged per pet per stay. Default is $100 if left empty.
+            </p>
           </div>
-          <p className="text-xs text-stone mt-1">
-            Leave empty for no pet fee. Amount shown to guests in the booking widget.
-          </p>
-        </div>
+        )}
       </div>
 
       {/* ── Capacity ───────────────────────────────────────────── */}

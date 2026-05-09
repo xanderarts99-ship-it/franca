@@ -77,7 +77,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
         checkInInstructions: true,
         checkOutInstructions: true,
         petsAllowed: true,
-        petFee: true,
+        petFeeAmount: true,
         cancellationPolicy: {
           select: { name: true, policyText: true },
         },
@@ -250,7 +250,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
               <HouseRulesSection
                 guests={property.guests}
                 petsAllowed={property.petsAllowed}
-                petFee={property.petFee !== null ? Number(property.petFee) : null}
+                petFeeAmount={property.petFeeAmount !== null ? Number(property.petFeeAmount) : null}
                 checkInTime={property.checkInTime}
                 checkOutTime={property.checkOutTime}
                 checkInInstructions={property.checkInInstructions}
@@ -284,7 +284,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                 propertyId={property.id}
                 nightlyRate={Number(property.nightlyRate)}
                 petsAllowed={property.petsAllowed}
-                petFee={property.petFee !== null ? Number(property.petFee) : null}
+                petFeeAmount={property.petFeeAmount !== null ? Number(property.petFeeAmount) : null}
               />
             </div>
           </div>

@@ -7,7 +7,7 @@ export interface HouseRule {
 interface PropertyData {
   guests: number;
   petsAllowed: boolean;
-  petFee: number | null;
+  petFeeAmount: number | null;
   checkInTime: string | null;
   checkOutTime: string | null;
   checkInInstructions: string | null;
@@ -21,10 +21,9 @@ export function getHouseRules(property: PropertyData): HouseRule[] {
     ...(property.checkOutInstructions ? [property.checkOutInstructions] : []),
   ];
 
+  const petFeeAmount = property.petFeeAmount ?? 100;
   const petRule = property.petsAllowed
-    ? property.petFee != null && property.petFee > 0
-      ? `Pets allowed — $${property.petFee} pet fee per stay`
-      : "Pets allowed"
+    ? `Pets allowed — maximum 3 pets, $${petFeeAmount} per pet per stay`
     : "No pets allowed";
 
   return [

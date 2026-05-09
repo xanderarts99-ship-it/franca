@@ -39,7 +39,7 @@ interface CheckoutFormProps {
   total: number;
   cancellationPolicyText?: string | null;
   cancellationPolicyName?: string | null;
-  includePetFee?: boolean;
+  petCount?: number;
 }
 
 function InputField({
@@ -89,7 +89,7 @@ export default function CheckoutForm({
   total,
   cancellationPolicyText,
   cancellationPolicyName,
-  includePetFee = false,
+  petCount = 0,
 }: CheckoutFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -127,7 +127,7 @@ export default function CheckoutForm({
           guestEmail: data.guestEmail,
           guestPhone: data.guestPhone,
           cancellationPolicyAgreed: policyAgreed,
-          includePetFee,
+          petCount,
         }),
       });
 

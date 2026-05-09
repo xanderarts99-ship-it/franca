@@ -10,6 +10,8 @@ interface PricingResult {
   nightlyTotal: number;
   nightlyBreakdown: { date: string; price: number }[];
   cleaningFee: number;
+  petFeePerPet: number;
+  petCount: number;
   petFee: number;
   taxRate: number;
   taxAmount: number;
@@ -22,7 +24,7 @@ interface BookingWidgetProps {
   propertyId: string;
   nightlyRate: number;
   petsAllowed: boolean;
-  petFee: number | null;
+  petFeeAmount: number | null;
 }
 
 function parseLocal(str: string): Date {
@@ -46,32 +48,10 @@ function groupBreakdown(breakdown: { date: string; price: number }[]): { price: 
   return groups;
 }
 
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sand focus-visible:ring-offset-2",
-        checked ? "bg-sand" : "bg-stone-light/40"
-      )}
-    >
-      <span
-        className={cn(
-          "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform duration-200",
-          checked ? "translate-x-5" : "translate-x-0"
-        )}
-      />
-    </button>
-  );
-}
-
-export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, petFee }: BookingWidgetProps) {
+export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, petFeeAmount }: BookingWidgetProps) {
   const router = useRouter();
   const { checkIn, checkOut, clearDates } = useContext(PropertyDateContext);
-  const [includePetFee, setIncludePetFee] = useState(false);
+  const [petCount, setPetCount] = useState(0);
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
@@ -94,7 +74,7 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
     setLoadingPricing(true);
     setPricingError(false);
 
-    const petParam = includePetFee ? "&includePetFee=true" : "";
+    const petParam = petCount > 0 ? `&petCount=${petCount}` : "";
     fetch(`/api/properties/${propertyId}/pricing?checkIn=${checkIn}&checkOut=${checkOut}${petParam}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("pricing failed");
@@ -108,7 +88,7 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
       });
 
     return () => { cancelled = true; };
-  }, [checkIn, checkOut, nights, propertyId, includePetFee]);
+  }, [checkIn, checkOut, nights, propertyId, petCount]);
 
   const displayTotal = pricing?.totalAmount ?? (nights > 0 ? nights * nightlyRate : 0);
 
@@ -116,15 +96,14 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
     if (!checkIn || !checkOut || nights <= 0) return;
     const total = pricing?.totalAmount ?? nights * nightlyRate;
     setNavigating(true);
-    const petParam = includePetFee ? "&includePetFee=true" : "";
+    const petParam = petCount > 0 ? `&petCount=${petCount}` : "";
     router.push(
       `/checkout?propertyId=${propertyId}&checkIn=${checkIn}&checkOut=${checkOut}&totalNights=${nights}&totalAmount=${total}${petParam}`
     );
   }
 
   const canBook = checkIn && checkOut && nights > 0 && !loadingPricing && !navigating;
-  const showPetFeeToggle = petsAllowed && petFee != null && petFee > 0;
-  const showPetsWelcome = petsAllowed && !showPetFeeToggle;
+  const displayPetFeePerPet = petFeeAmount ?? 100;
 
   return (
     <div className="bg-surface border border-warm-border rounded-card shadow-lg p-6 sticky top-24">
@@ -215,7 +194,9 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
                 <div className="flex justify-between text-stone">
                   <span className="flex items-center gap-1.5">
                     <PawPrint size={12} className="text-stone-light" />
-                    Pet fee
+                    {petCount > 0
+                      ? `Pet fee (${petCount} ${petCount === 1 ? "pet" : "pets"})`
+                      : "Pet fee"}
                   </span>
                   <span className="text-charcoal font-medium">
                     ${pricing.petFee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -239,38 +220,51 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
         </div>
       )}
 
-      {/* Pet fee toggle — petsAllowed AND a fee is configured */}
-      {showPetFeeToggle && (
+      {/* Pet counter — only shown when petsAllowed */}
+      {petsAllowed && (
         <div className="border border-warm-border rounded-xl px-4 py-3.5 mb-4 bg-cream/50">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-2">
             <PawPrint size={14} className="text-sand shrink-0" />
             <span className="text-sm font-semibold text-charcoal">Bringing a pet?</span>
           </div>
           <p className="text-xs text-stone leading-relaxed mb-3">
-            A one-time pet fee of ${petFee} applies per stay, regardless of the number of pets.
+            ${displayPetFeePerPet} per pet per stay · max 3 pets
           </p>
           <div className="flex items-center justify-between">
-            <label className="text-sm text-stone cursor-pointer">
-              Yes, I&apos;m bringing a pet
-            </label>
-            <ToggleSwitch checked={includePetFee} onChange={setIncludePetFee} />
-          </div>
-          {includePetFee && (
-            <div className="flex items-center gap-1.5 mt-2.5 text-xs text-sand font-medium">
-              <PawPrint size={11} />
-              <span>Pet fee added to your total</span>
+            <span className="text-sm text-stone">Number of pets</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={petCount === 0}
+                onClick={() => setPetCount((n) => Math.max(0, n - 1))}
+                className={cn(
+                  "w-11 h-11 rounded-full border flex items-center justify-center text-lg font-semibold transition-colors",
+                  petCount === 0
+                    ? "border-warm-border text-stone-light cursor-not-allowed"
+                    : "border-sand text-sand hover:bg-sand hover:text-white cursor-pointer"
+                )}
+                aria-label="Decrease pets"
+              >
+                −
+              </button>
+              <span className="w-4 text-center text-sm font-semibold text-charcoal">
+                {petCount}
+              </span>
+              <button
+                type="button"
+                disabled={petCount === 3}
+                onClick={() => setPetCount((n) => Math.min(3, n + 1))}
+                className={cn(
+                  "w-11 h-11 rounded-full border flex items-center justify-center text-lg font-semibold transition-colors",
+                  petCount === 3
+                    ? "border-warm-border text-stone-light cursor-not-allowed"
+                    : "border-sand text-sand hover:bg-sand hover:text-white cursor-pointer"
+                )}
+                aria-label="Increase pets"
+              >
+                +
+              </button>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Pets welcome notice — petsAllowed but no fee configured */}
-      {showPetsWelcome && (
-        <div className="flex items-center gap-2.5 border border-warm-border rounded-xl px-4 py-3 mb-4 bg-cream/50">
-          <PawPrint size={14} className="text-sand shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-charcoal">Pets welcome</p>
-            <p className="text-xs text-stone mt-0.5">No additional pet fee for this property.</p>
           </div>
         </div>
       )}
@@ -315,7 +309,7 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
 
       <div className="mt-4 pt-4 border-t border-warm-border flex items-center justify-center gap-1.5 text-xs text-stone">
         <Users size={12} />
-        <span>Secure checkout · No booking fees</span>
+        <span>Secure checkout · No guest fees</span>
       </div>
     </div>
   );

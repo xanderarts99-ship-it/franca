@@ -64,7 +64,7 @@ const schema = z.object({
   checkOutInstructions: z.string().max(1000).optional().nullable(),
   cancellationPolicyId: z.string().optional().nullable(),
   petsAllowed: z.boolean().optional(),
-  petFee: z.coerce.number().min(0).nullable().optional(),
+  petFeeAmount: z.number().min(0).max(1000).nullable().optional(),
 });
 
 export async function PATCH(

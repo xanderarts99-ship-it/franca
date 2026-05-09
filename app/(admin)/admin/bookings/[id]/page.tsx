@@ -91,6 +91,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
   const nightlyTotal = booking.nightlyTotal !== null ? Number(booking.nightlyTotal) : null;
   const cleaningFee  = booking.cleaningFee  !== null ? Number(booking.cleaningFee)  : null;
   const petFee       = booking.petFee       !== null ? Number(booking.petFee)       : null;
+  const petCount     = booking.petCount     ?? null;
   const taxRate      = booking.taxRate      !== null ? Number(booking.taxRate)      : null;
   const taxAmount    = booking.taxAmount    !== null ? Number(booking.taxAmount)    : null;
 
@@ -236,7 +237,9 @@ export default async function BookingDetailPage({ params }: PageProps) {
                   <div className="flex justify-between">
                     <span className="flex items-center gap-1.5">
                       <PawPrint size={11} className="text-stone-light" />
-                      Pet fee
+                      {petCount && petCount > 0
+                        ? `Pet fee (${petCount} ${petCount === 1 ? "pet" : "pets"})`
+                        : "Pet fee"}
                     </span>
                     <span className="text-charcoal">${fmt(petFee)}</span>
                   </div>

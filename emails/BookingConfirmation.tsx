@@ -41,6 +41,7 @@ export interface BookingConfirmationProps {
   taxAmount: string | null;
   totalAmount: string;
   petFee?: string | null;
+  petCount?: number;
   cancellationPolicyText?: string;
   cancellationPolicyName?: string;
   checkInInstructions?: string;
@@ -63,6 +64,7 @@ export default function BookingConfirmation({
   taxAmount,
   totalAmount,
   petFee,
+  petCount,
   cancellationPolicyText,
   cancellationPolicyName,
   checkInInstructions,
@@ -168,7 +170,12 @@ export default function BookingConfirmation({
                   <PriceRow label="Cleaning fee" amount={cleaningFee} />
                 )}
                 {petFee != null && (
-                  <PriceRow label="Pet fee" amount={petFee} />
+                  <PriceRow
+                    label={petCount && petCount > 0
+                      ? `Pet fee (${petCount} ${petCount === 1 ? "pet" : "pets"})`
+                      : "Pet fee"}
+                    amount={petFee}
+                  />
                 )}
                 {taxAmount !== null && taxPct !== null && (
                   <PriceRow label={`Tax (${taxPct}%)`} amount={taxAmount} />

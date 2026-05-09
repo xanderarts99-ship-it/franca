@@ -27,7 +27,7 @@ const bodySchema = z.object({
   checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "checkOut must be YYYY-MM-DD"),
   totalAmount: z.number().positive(),
   cancellationPolicyAgreed: z.boolean().optional(),
-  includePetFee: z.boolean().default(false),
+  petCount: z.number().int().min(0).max(3).default(0),
 });
 
 export async function POST(request: NextRequest) {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { propertyId, guestName, guestEmail, guestPhone, checkIn, checkOut, totalAmount, includePetFee } =
+  const { propertyId, guestName, guestEmail, guestPhone, checkIn, checkOut, totalAmount, petCount } =
     parsed.data;
 
   const checkInDate = parseDateLocal(checkIn);
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       checkIn: checkInDate,
       checkOut: checkOutDate,
       totalAmount,
-      includePetFee,
+      petCount,
     });
 
     return NextResponse.json({
