@@ -11,6 +11,7 @@ import {
   BookingConflictError,
   BookingAmountMismatchError,
 } from "@/lib/bookings";
+import { bookingLimiter } from "@/lib/rate-limit";
 
 function parseDateLocal(str: string): Date {
   const [y, m, d] = str.split("-").map(Number);
@@ -30,6 +31,19 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown";
+
+  const { success } = bookingLimiter.check(5, ip);
+  if (!success) {
+    return NextResponse.json(
+      { error: "Too many booking attempts. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   // Clean up stale pending bookings before processing
   await expireStaleBookings().catch((err) =>
     console.error("expireStaleBookings error:", err)

@@ -15,12 +15,15 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const email    = process.env.ADMIN_EMAIL    ?? "admin@rammiesvacation.com";
-  const password = process.env.ADMIN_PASSWORD ?? "changeme123";
+  const email = process.env.ADMIN_EMAIL ?? "admin@rammiesvacation.com";
 
-  if (password === "changeme123") {
-    console.warn("⚠️  Using default password. Set ADMIN_PASSWORD env var for production.");
+  if (!process.env.ADMIN_PASSWORD) {
+    throw new Error(
+      "ADMIN_PASSWORD environment variable is required. " +
+      "Set it before running this script."
+    );
   }
+  const password = process.env.ADMIN_PASSWORD;
 
   const passwordHash = await bcrypt.hash(password, 12);
 

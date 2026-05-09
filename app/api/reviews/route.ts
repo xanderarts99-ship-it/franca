@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   if (featured === "true") {
     const reviews = await prisma.review.findMany({
-      where: { featured: true },
+      where: { featured: true, approved: true },
       orderBy: { reviewDate: "desc" },
       take: 6,
       include: { property: { select: { name: true } } },
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const where = { propertyId: propertyId! };
+  const where = { propertyId: propertyId!, approved: true };
   const [reviews, total] = await Promise.all([
     prisma.review.findMany({
       where,

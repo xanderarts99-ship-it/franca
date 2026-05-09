@@ -34,10 +34,13 @@ export async function POST(
   }
 
   const reviewToken = booking.reviewToken ?? randomUUID();
+  const reviewTokenExpiresAt = new Date(
+    booking.checkOut.getTime() + 90 * 24 * 60 * 60 * 1000
+  );
 
   const updated = await prisma.booking.update({
     where: { id },
-    data: { reviewToken, reviewRequestSentAt: new Date() },
+    data: { reviewToken, reviewTokenExpiresAt, reviewRequestSentAt: new Date() },
     include: { property: { include: { cancellationPolicy: true } } },
   });
 

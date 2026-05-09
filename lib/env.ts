@@ -4,16 +4,13 @@ const serverSchema = z.object({
   DATABASE_URL:           z.string().min(1, "DATABASE_URL is required"),
   NEXTAUTH_SECRET:        z.string().min(1, "NEXTAUTH_SECRET is required"),
   NEXTAUTH_URL:           z.string().url().optional(),
-  // Added when Stripe is wired
-  STRIPE_SECRET_KEY:           z.string().optional(),
-  STRIPE_WEBHOOK_SECRET:       z.string().optional(),
-  // Added when Cloudinary is wired
-  CLOUDINARY_CLOUD_NAME:  z.string().optional(),
-  CLOUDINARY_API_KEY:     z.string().optional(),
-  CLOUDINARY_API_SECRET:  z.string().optional(),
-  // Added when Resend is wired
-  RESEND_API_KEY:         z.string().optional(),
-  RESEND_FROM_EMAIL:      z.string().email().optional(),
+  STRIPE_SECRET_KEY:      z.string().min(1, "STRIPE_SECRET_KEY is required"),
+  STRIPE_WEBHOOK_SECRET:  z.string().min(1, "STRIPE_WEBHOOK_SECRET is required"),
+  CLOUDINARY_CLOUD_NAME:  z.string().min(1, "CLOUDINARY_CLOUD_NAME is required"),
+  CLOUDINARY_API_KEY:     z.string().min(1, "CLOUDINARY_API_KEY is required"),
+  CLOUDINARY_API_SECRET:  z.string().min(1, "CLOUDINARY_API_SECRET is required"),
+  RESEND_API_KEY:         z.string().min(1, "RESEND_API_KEY is required"),
+  RESEND_FROM_EMAIL:      z.string().email("RESEND_FROM_EMAIL must be a valid email"),
 });
 
 const clientSchema = z.object({

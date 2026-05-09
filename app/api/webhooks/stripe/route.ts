@@ -1,28 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { env } from "@/lib/env";
 import { createBookingFromPayment } from "@/lib/bookings";
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!signature) {
+    console.error("[WEBHOOK] Missing stripe-signature header");
+    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+  }
+
+  const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
   let event: Stripe.Event;
-
-  if (webhookSecret && signature) {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "");
-    try {
-      event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-    } catch {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-    }
-  } else {
-    // Development mode — no signature verification
-    try {
-      event = JSON.parse(rawBody) as Stripe.Event;
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("[WEBHOOK] Invalid signature:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   if (event.type !== "payment_intent.succeeded") {
@@ -41,7 +38,14 @@ export async function POST(request: NextRequest) {
       !meta.checkIn ||
       !meta.checkOut
     ) {
-      console.error("Stripe webhook: missing metadata fields", meta);
+      console.error("[WEBHOOK] Missing metadata fields", {
+        propertyId: meta?.propertyId ?? "missing",
+        hasGuestName: !!meta?.guestName,
+        hasGuestEmail: !!meta?.guestEmail,
+        hasGuestPhone: !!meta?.guestPhone,
+        hasCheckIn: !!meta?.checkIn,
+        hasCheckOut: !!meta?.checkOut,
+      });
       return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
     }
 
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (err) {
-    console.error("Stripe webhook processing failed:", err);
+    console.error("[WEBHOOK] Processing failed:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }

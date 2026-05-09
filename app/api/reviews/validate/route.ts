@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     where: { reviewToken: token },
     select: {
       reviewSubmittedAt: true,
+      reviewTokenExpiresAt: true,
       guestName: true,
       checkIn: true,
       checkOut: true,
@@ -26,6 +27,10 @@ export async function GET(request: NextRequest) {
 
   if (booking.reviewSubmittedAt) {
     return NextResponse.json({ error: "Review already submitted" }, { status: 409 });
+  }
+
+  if (booking.reviewTokenExpiresAt && booking.reviewTokenExpiresAt < new Date()) {
+    return NextResponse.json({ error: "This review link has expired" }, { status: 410 });
   }
 
   return NextResponse.json({

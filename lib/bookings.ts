@@ -178,13 +178,7 @@ export async function confirmBooking(
 
   if (!booking) throw new Error("Booking not found");
 
-  if (booking.status !== "PENDING_PAYMENT") {
-    if (booking.status === "CONFIRMED") throw new Error("Booking is already confirmed");
-    if (booking.status === "EXPIRED") throw new Error("This booking request has expired");
-    throw new Error("Cannot confirm a cancelled booking");
-  }
-
-  // Auto-expire if past the deadline
+  // Auto-expire if past the deadline (pre-check before hitting the transaction)
   if (booking.expiresAt && booking.expiresAt < new Date()) {
     await prisma.booking.update({ where: { id: bookingId }, data: { status: "EXPIRED" } });
     throw new Error("This booking request has expired");
@@ -202,8 +196,21 @@ export async function confirmBooking(
     );
   }
 
-  // Transaction: mark CONFIRMED + block dates atomically
+  // Transaction: re-check status + mark CONFIRMED + block dates atomically
   await prisma.$transaction(async (tx) => {
+    const current = await tx.booking.findUnique({
+      where: { id: bookingId },
+      select: { status: true },
+    });
+
+    if (!current) throw new Error("Booking not found");
+
+    if (current.status !== "PENDING_PAYMENT") {
+      if (current.status === "CONFIRMED") throw new Error("Booking is already confirmed");
+      if (current.status === "EXPIRED") throw new Error("This booking request has expired");
+      throw new Error("Cannot confirm a cancelled booking");
+    }
+
     await tx.booking.update({
       where: { id: bookingId },
       data: {
@@ -232,10 +239,8 @@ export async function confirmBooking(
     },
   });
 
-  console.log("[CONFIRM BOOKING] About to send confirmation email", { bookingId });
   try {
     await sendBookingConfirmationEmail(updated);
-    console.log("[CONFIRM BOOKING] Email function completed", { bookingId });
   } catch (err) {
     console.error("[EMAIL ERROR] booking confirmation email failed", {
       bookingId,
@@ -326,6 +331,17 @@ export async function createBookingFromPayment(data: CreateBookingInput): Promis
   );
 
   if (totalNights <= 0) throw new Error("checkOut must be after checkIn");
+
+  // Availability and amount checks must run before the transaction
+  const available = await isDateRangeAvailable(propertyId, checkInNorm, checkOutNorm);
+  if (!available) {
+    throw new BookingUnavailableError();
+  }
+
+  const isValid = await validateBookingAmount(propertyId, checkInNorm, checkOutNorm, totalAmount);
+  if (!isValid) {
+    throw new Error("Payment amount mismatch");
+  }
 
   const bookingReference = await generateBookingReference();
 

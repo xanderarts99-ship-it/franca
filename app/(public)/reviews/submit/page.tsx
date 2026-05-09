@@ -66,7 +66,7 @@ function ReviewSubmitContent() {
   const token = searchParams.get("token");
 
   const [bookingInfo, setBookingInfo] = useState<BookingInfo | null>(null);
-  const [loadState, setLoadState] = useState<"loading" | "invalid" | "already_submitted" | "ready">("loading");
+  const [loadState, setLoadState] = useState<"loading" | "invalid" | "expired" | "already_submitted" | "ready">("loading");
 
   const [guestName, setGuestName] = useState("");
   const [rating, setRating] = useState(0);
@@ -85,6 +85,7 @@ function ReviewSubmitContent() {
       .then(async (res) => {
         if (res.status === 404) { setLoadState("invalid"); return; }
         if (res.status === 409) { setLoadState("already_submitted"); return; }
+        if (res.status === 410) { setLoadState("expired"); return; }
         if (!res.ok) { setLoadState("invalid"); return; }
         const data = await res.json() as BookingInfo;
         setBookingInfo(data);
@@ -142,6 +143,23 @@ function ReviewSubmitContent() {
           <p className="text-stone text-sm leading-relaxed">
             This review link is invalid or has expired. If you believe this is an error,
             please contact us directly.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadState === "expired") {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <AlertCircle size={48} className="text-amber-400 mx-auto mb-4" />
+          <h1 className="font-serif text-2xl font-semibold text-charcoal mb-2">
+            Review Link Expired
+          </h1>
+          <p className="text-stone text-sm leading-relaxed">
+            This review link has expired. Review links are valid for 90 days after checkout.
+            If you believe this is an error, please contact us directly.
           </p>
         </div>
       </div>

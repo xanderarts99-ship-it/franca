@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { reviewLimiter } from "@/lib/rate-limit";
 
 const schema = z.object({
   token: z.string().min(1),
@@ -10,6 +11,19 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown";
+
+  const { success } = reviewLimiter.check(3, ip);
+  if (!success) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -33,6 +47,7 @@ export async function POST(request: NextRequest) {
       id: true,
       propertyId: true,
       reviewSubmittedAt: true,
+      reviewTokenExpiresAt: true,
       status: true,
     },
   });
@@ -43,6 +58,10 @@ export async function POST(request: NextRequest) {
 
   if (booking.reviewSubmittedAt) {
     return NextResponse.json({ error: "Review already submitted" }, { status: 409 });
+  }
+
+  if (booking.reviewTokenExpiresAt && booking.reviewTokenExpiresAt < new Date()) {
+    return NextResponse.json({ error: "This review link has expired" }, { status: 410 });
   }
 
   await prisma.$transaction(async (tx) => {

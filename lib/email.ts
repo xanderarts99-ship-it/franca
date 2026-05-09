@@ -27,6 +27,14 @@ function formatAmount(amount: number): string {
   }).format(amount);
 }
 
+function redactEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return "***@***.***";
+  const visible = local.slice(0, 3);
+  const redacted = "*".repeat(Math.max(0, local.length - 3));
+  return `${visible}${redacted}@${domain}`;
+}
+
 function getResend(): { resend: Resend; from: string } | null {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
@@ -48,14 +56,14 @@ async function sendEmail(
       console.error("[EMAIL ERROR]", {
         type: "resend_api_error",
         error: result.error,
-        to: emailData.to,
+        to: redactEmail(emailData.to),
         subject: emailData.subject,
         timestamp: new Date().toISOString(),
       });
     } else {
       console.log("[EMAIL SENT]", {
         id: result.data?.id,
-        to: emailData.to,
+        to: redactEmail(emailData.to),
         subject: emailData.subject,
         timestamp: new Date().toISOString(),
       });
@@ -63,7 +71,7 @@ async function sendEmail(
   } catch (error) {
     console.error("[EMAIL EXCEPTION]", {
       error: error instanceof Error ? error.message : error,
-      to: emailData.to,
+      to: redactEmail(emailData.to),
       timestamp: new Date().toISOString(),
     });
   }

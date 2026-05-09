@@ -1,14 +1,14 @@
+import { randomBytes } from "crypto";
 import { prisma } from "./prisma";
 
 // Excludes ambiguous characters: 0, O, 1, I
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function randomSuffix(): string {
-  let s = "";
-  for (let i = 0; i < 6; i++) {
-    s += CHARS[Math.floor(Math.random() * CHARS.length)];
-  }
-  return s;
+  const bytes = randomBytes(6);
+  return Array.from(bytes)
+    .map((b) => CHARS[b % CHARS.length])
+    .join("");
 }
 
 export async function generateBookingReference(): Promise<string> {
