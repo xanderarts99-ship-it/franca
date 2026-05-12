@@ -114,7 +114,7 @@ export default function ForgotPasswordForm() {
         </div>
 
         {serverError && (
-          <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-3">
+          <div role="alert" className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-3">
             <AlertCircle size={13} className="mt-0.5 shrink-0" />
             <span>{serverError}</span>
           </div>
