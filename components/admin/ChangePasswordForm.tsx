@@ -1,3 +1,4 @@
+// components/admin/ChangePasswordForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -60,6 +61,7 @@ export default function ChangePasswordForm() {
 
       setSuccess(true);
       reset();
+      setTimeout(() => setSuccess(false), 3000);
     } catch {
       setServerError("Network error. Please check your connection and try again.");
     } finally {
@@ -70,6 +72,7 @@ export default function ChangePasswordForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
       <PasswordField
+        id="currentPassword"
         label="Current Password"
         show={showCurrent}
         onToggle={() => setShowCurrent((v) => !v)}
@@ -78,6 +81,7 @@ export default function ChangePasswordForm() {
         autoComplete="current-password"
       />
       <PasswordField
+        id="newPassword"
         label="New Password"
         show={showNew}
         onToggle={() => setShowNew((v) => !v)}
@@ -86,6 +90,7 @@ export default function ChangePasswordForm() {
         autoComplete="new-password"
       />
       <PasswordField
+        id="confirmPassword"
         label="Confirm New Password"
         show={showConfirm}
         onToggle={() => setShowConfirm((v) => !v)}
@@ -95,14 +100,20 @@ export default function ChangePasswordForm() {
       />
 
       {serverError && (
-        <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-3">
+        <div
+          role="alert"
+          className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-3"
+        >
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{serverError}</span>
         </div>
       )}
 
       {success && (
-        <div className="flex items-start gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-3">
+        <div
+          role="alert"
+          className="flex items-start gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-3"
+        >
           <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
           <span>Password updated successfully.</span>
         </div>
@@ -126,7 +137,9 @@ export default function ChangePasswordForm() {
   );
 }
 
+// Private sub-component — not exported
 function PasswordField({
+  id,
   label,
   show,
   onToggle,
@@ -134,16 +147,20 @@ function PasswordField({
   error,
   autoComplete,
 }: {
+  id: string;
   label: string;
   show: boolean;
   onToggle: () => void;
   registration: UseFormRegisterReturn;
   error?: string;
-  autoComplete: string;
+  autoComplete: React.HTMLInputAutoCompleteAttribute;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-light">
+      <label
+        htmlFor={id}
+        className="text-[10px] font-semibold uppercase tracking-wider text-stone-light"
+      >
         {label}
       </label>
       <div className="relative">
@@ -152,6 +169,7 @@ function PasswordField({
           className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-light/50 pointer-events-none"
         />
         <input
+          id={id}
           type={show ? "text" : "password"}
           autoComplete={autoComplete}
           placeholder="••••••••"
