@@ -45,3 +45,8 @@ export const reviewLimiter = rateLimit({
   interval: 60 * 60 * 1000,
   uniqueTokenPerInterval: 500,
 });
+
+export const forgotPasswordLimiter = rateLimit({
+  interval: 15 * 60 * 1000,
+  uniqueTokenPerInterval: 500,
+});
