@@ -5,6 +5,7 @@ import GuestBookingRequestEmail from "@/emails/GuestBookingRequestEmail";
 import AdminNewBookingRequestEmail from "@/emails/AdminNewBookingRequestEmail";
 import GuestBookingRejectedEmail from "@/emails/GuestBookingRejectedEmail";
 import ReviewRequestEmail from "@/emails/ReviewRequestEmail";
+import AdminPasswordResetEmail from "@/emails/AdminPasswordResetEmail";
 import type { Booking, Property, CancellationPolicy } from "@prisma/client";
 
 type BookingWithProperty = Booking & {
@@ -262,6 +263,23 @@ export async function sendReviewRequestEmail(
   await sendEmail(resend, from, {
     to: booking.guestEmail,
     subject: `⭐ How was your stay at ${booking.property.name}?`,
+    html,
+  });
+}
+
+export async function sendPasswordResetEmail(
+  toEmail: string,
+  resetUrl: string
+): Promise<void> {
+  const client = getResend();
+  if (!client) return;
+  const { resend, from } = client;
+
+  const html = await render(AdminPasswordResetEmail({ resetUrl }));
+
+  await sendEmail(resend, from, {
+    to: toEmail,
+    subject: "Reset your Rammies Vacation admin password",
     html,
   });
 }
