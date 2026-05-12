@@ -19,5 +19,8 @@ export async function middleware(request: NextRequest) {
 
 // Protect all /admin routes except login, forgot-password, and reset-password
 export const config = {
-  matcher: ["/admin/((?!login|forgot-password|reset-password).*)"],
+  matcher: [
+    "/admin",
+    "/admin/((?!login|forgot-password|reset-password).*)",
+  ],
 };
