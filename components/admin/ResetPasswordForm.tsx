@@ -92,6 +92,7 @@ export default function ResetPasswordForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
         <PasswordField
+          id="newPassword"
           label="New Password"
           show={showNew}
           onToggle={() => setShowNew((v) => !v)}
@@ -99,6 +100,7 @@ export default function ResetPasswordForm() {
           error={errors.newPassword?.message}
         />
         <PasswordField
+          id="confirmPassword"
           label="Confirm Password"
           show={showConfirm}
           onToggle={() => setShowConfirm((v) => !v)}
@@ -133,12 +135,14 @@ export default function ResetPasswordForm() {
 }
 
 function PasswordField({
+  id,
   label,
   show,
   onToggle,
   registration,
   error,
 }: {
+  id: string;
   label: string;
   show: boolean;
   onToggle: () => void;
@@ -147,7 +151,7 @@ function PasswordField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-light">
+      <label htmlFor={id} className="text-[10px] font-semibold uppercase tracking-wider text-stone-light">
         {label}
       </label>
       <div className="relative">
@@ -156,6 +160,7 @@ function PasswordField({
           className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-light/50 pointer-events-none"
         />
         <input
+          id={id}
           type={show ? "text" : "password"}
           autoComplete="new-password"
           placeholder="••••••••"

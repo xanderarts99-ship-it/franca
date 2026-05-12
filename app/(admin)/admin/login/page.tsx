@@ -59,7 +59,7 @@ export default async function AdminLoginPage({
 
         {/* Password reset success banner */}
         {showResetSuccess && (
-          <div className="flex items-start gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-3 mb-4">
+          <div role="status" className="flex items-start gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-3 mb-4">
             <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
             <span>
               Password reset successfully. Please sign in with your new
