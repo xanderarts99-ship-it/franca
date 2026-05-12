@@ -1,14 +1,22 @@
-import { withAuth } from "next-auth/middleware";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 
-export default withAuth({
-  callbacks: {
-    authorized({ token }) {
-      return !!token;
-    },
-  },
-});
+export async function middleware(request: NextRequest) {
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
 
-// Protect all /admin routes except the login page
+  if (!token) {
+    const loginUrl = new URL("/admin/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+}
+
+// Protect all /admin routes except login, forgot-password, and reset-password
 export const config = {
-  matcher: ["/admin/((?!login).*)"],
+  matcher: ["/admin/((?!login|forgot-password|reset-password).*)"],
 };
