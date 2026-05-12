@@ -13,7 +13,7 @@ export default async function CancellationPoliciesPage() {
   });
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-charcoal">Cancellation Policies</h1>
