@@ -46,24 +46,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(SUCCESS_RESPONSE);
   }
 
-  const rawToken = randomBytes(32).toString("hex");
-  const tokenHash = await bcrypt.hash(rawToken, 12);
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  try {
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = await bcrypt.hash(rawToken, 12);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-  await prisma.adminUser.update({
-    where: { id: user.id },
-    data: {
-      resetToken: tokenHash,
-      resetTokenExpiresAt: expiresAt,
-    },
-  });
+    await prisma.adminUser.update({
+      where: { id: user.id },
+      data: {
+        resetToken: tokenHash,
+        resetTokenExpiresAt: expiresAt,
+      },
+    });
 
-  const siteUrl =
-    process.env.NEXTAUTH_URL ?? "https://www.rammiesvacation.com";
-  const resetUrl = `${siteUrl}/admin/reset-password?token=${rawToken}`;
+    const siteUrl =
+      process.env.NEXTAUTH_URL ?? "https://www.rammiesvacation.com";
+    const resetUrl = `${siteUrl}/admin/reset-password?token=${rawToken}`;
 
-  await sendPasswordResetEmail(user.email, resetUrl);
-  console.log("[FORGOT_PASSWORD] Reset email dispatched to:", user.email.replace(/(.{3}).*@/, "$1***@"));
+    await sendPasswordResetEmail(user.email, resetUrl);
+    console.log("[FORGOT_PASSWORD] Reset email dispatched to:", user.email.replace(/(.{3}).*@/, "$1***@"));
+  } catch (err) {
+    console.error("[FORGOT_PASSWORD] Failed to generate or store reset token:", err);
+  }
 
   return NextResponse.json(SUCCESS_RESPONSE);
 }
