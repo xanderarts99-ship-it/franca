@@ -15,3 +15,5 @@ declare module "next-auth/jwt" {
     id: string;
   }
 }
+
+// https://next-auth.js.org/getting-started/typescript
