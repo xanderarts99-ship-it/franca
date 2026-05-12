@@ -40,6 +40,9 @@ export async function POST(request: NextRequest) {
 
   const { token, newPassword } = parsed.data;
 
+  // Single-admin system: there is exactly one AdminUser record.
+  // We fetch by expiry then bcrypt.compare — safe because there is never
+  // more than one candidate token in the table at a time.
   const user = await prisma.adminUser.findFirst({
     where: {
       resetToken: { not: null },

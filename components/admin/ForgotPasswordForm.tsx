@@ -84,7 +84,7 @@ export default function ForgotPasswordForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-light">
+          <label htmlFor="email" className="text-[10px] font-semibold uppercase tracking-wider text-stone-light">
             Email address
           </label>
           <div className="relative">
@@ -93,6 +93,7 @@ export default function ForgotPasswordForm() {
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-light/50 pointer-events-none"
             />
             <input
+              id="email"
               type="email"
               autoComplete="email"
               placeholder="rammies@example.com"
