@@ -50,3 +50,8 @@ export const forgotPasswordLimiter = rateLimit({
   interval: 15 * 60 * 1000,
   uniqueTokenPerInterval: 500,
 });
+
+export const resetPasswordLimiter = rateLimit({
+  interval: 15 * 60 * 1000,
+  uniqueTokenPerInterval: 500,
+});

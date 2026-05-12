@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { resetPasswordLimiter } from "@/lib/rate-limit";
 
 const schema = z.object({
   token: z.string().min(1),
@@ -9,6 +10,19 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const ip =
+    (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+
+  const { success } = resetPasswordLimiter.check(5, ip);
+  if (!success) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -26,30 +40,30 @@ export async function POST(request: NextRequest) {
 
   const { token, newPassword } = parsed.data;
 
-  // Find the user that has a non-expired reset token set
   const user = await prisma.adminUser.findFirst({
     where: {
       resetToken: { not: null },
       resetTokenExpiresAt: { gt: new Date() },
     },
+    select: { id: true, resetToken: true },
   });
 
   if (!user || !user.resetToken) {
     return NextResponse.json(
-      { error: "This reset link is invalid or has already been used." },
-      { status: 400 }
-    );
-  }
-
-  const tokenValid = await bcrypt.compare(token, user.resetToken);
-  if (!tokenValid) {
-    return NextResponse.json(
-      { error: "This reset link is invalid or has already been used." },
+      { error: "This reset link is invalid or has already been used" },
       { status: 400 }
     );
   }
 
   try {
+    const tokenValid = await bcrypt.compare(token, user.resetToken);
+    if (!tokenValid) {
+      return NextResponse.json(
+        { error: "This reset link is invalid or has already been used" },
+        { status: 400 }
+      );
+    }
+
     const hash = await bcrypt.hash(newPassword, 12);
     await prisma.adminUser.update({
       where: { id: user.id },
@@ -60,7 +74,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error("[RESET_PASSWORD] Failed to update password:", err);
+    console.error("[RESET_PASSWORD] Failed to reset password:", err);
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }
