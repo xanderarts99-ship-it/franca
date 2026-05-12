@@ -132,6 +132,16 @@ export default function AdminLoginForm() {
         )}
       </div>
 
+      {/* Forgot password */}
+      <div className="flex justify-end -mt-1">
+        <a
+          href="/admin/forgot-password"
+          className="text-xs text-stone-light/50 hover:text-stone-light transition-colors"
+        >
+          Forgot password?
+        </a>
+      </div>
+
       {/* Server error */}
       {serverError && (
         <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-3">
