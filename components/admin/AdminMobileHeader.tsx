@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Menu, X, LayoutDashboard, Building2, Star, ShieldCheck, LogOut, ExternalLink } from "lucide-react";
+import { Menu, X, LayoutDashboard, Building2, Star, ShieldCheck, Settings, LogOut, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/properties",            label: "Properties", icon: Building2 },
   { href: "/admin/reviews",               label: "Reviews",    icon: Star },
   { href: "/admin/cancellation-policies", label: "Policies",   icon: ShieldCheck },
+  { href: "/admin/settings",              label: "Settings",   icon: Settings },
 ];
 
 export default function AdminMobileHeader() {
