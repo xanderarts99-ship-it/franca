@@ -76,6 +76,7 @@ export default async function PropertyEditPage({ params }: PageProps) {
         }}
         cancellationPolicies={cancellationPolicies}
       />
+      <p className="mt-6 text-sm text-stone">Need to change the minimum stay? <Link className="text-charcoal underline" href={`/admin/stay-rules?propertyId=${id}`}>Manage this home’s stay rules</Link></p>
     </div>
   );
 }

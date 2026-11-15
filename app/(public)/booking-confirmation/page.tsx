@@ -29,6 +29,7 @@ function formatDate(date: Date) {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 

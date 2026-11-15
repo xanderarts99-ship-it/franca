@@ -594,6 +594,7 @@ const properties = [
 ];
 
 async function main() {
+  await prisma.staySettings.upsert({ where: { id: "default" }, create: { id: "default", minimumNights: 2 }, update: {} });
   // Admin user
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
   await prisma.adminUser.upsert({

@@ -94,6 +94,7 @@ export default function CheckoutForm({
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [dateError, setDateError] = useState(false);
   const [policyAgreed, setPolicyAgreed] = useState(false);
   const [policyExpanded, setPolicyExpanded] = useState(false);
 
@@ -113,6 +114,7 @@ export default function CheckoutForm({
 
     setSubmitting(true);
     setServerError("");
+    setDateError(false);
 
     try {
       const res = await fetch("/api/payments/create-intent", {
@@ -149,6 +151,7 @@ export default function CheckoutForm({
       }
 
       if (!res.ok) {
+        setDateError(json.code === "MINIMUM_STAY" || json.code === "INVALID_STAY");
         setServerError(json.error ?? "Booking failed. Please try again.");
         setSubmitting(false);
         return;
@@ -290,7 +293,7 @@ export default function CheckoutForm({
       {serverError && (
         <div className="flex items-start gap-2.5 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">
           <AlertCircle size={15} className="mt-0.5 shrink-0" />
-          <span>{serverError}</span>
+          <span>{serverError}{dateError && <a href={`/properties/${propertyId}`} className="block underline mt-2">Choose new dates</a>}</span>
         </div>
       )}
 

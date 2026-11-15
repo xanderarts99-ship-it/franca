@@ -42,3 +42,6 @@ next-env.d.ts
 
 #claude code docs
 /docs
+
+# Local test database setup and generated login details
+/.local-test/

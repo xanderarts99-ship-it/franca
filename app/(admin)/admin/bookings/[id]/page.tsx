@@ -26,7 +26,7 @@ const STATUS_CONFIG: Record<DisplayStatus, { label: string; className: string; i
 
 function formatDate(date: Date) {
   return date.toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", year: "numeric",
+    weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
   });
 }
 
@@ -128,6 +128,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
               </h1>
             </div>
             <p className="text-xs text-stone">Submitted on {formatDate(booking.createdAt)}</p>
+            <p className="text-sm text-stone mt-2">{booking.minimumStayApplied === null ? "Accepted before minimum-stay tracking; keeps its original agreement." : `Minimum when requested: ${booking.minimumStayApplied} nights. Later rule changes do not affect this request.`}</p>
           </div>
           <span className={cn(
             "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border",

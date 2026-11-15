@@ -9,6 +9,13 @@ import {
   sendGuestBookingRejected,
 } from "./email";
 import type { Booking, Property } from "@prisma/client";
+import { dateKey, parseStayDate } from "./stay-dates";
+import {
+  getStayPolicy,
+  lockStaySettings,
+  validateBookingStay,
+} from "./stay-policy";
+import { StayValidationError, validateStay } from "./stay-rules";
 
 // ── Custom error types ──────────────────────────────────────────────
 
@@ -37,11 +44,11 @@ export class BookingAmountMismatchError extends Error {
 
 function eachDayInRange(checkIn: Date, checkOut: Date): Date[] {
   const dates: Date[] = [];
-  const cur = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-  const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+  const cur = parseStayDate(dateKey(checkIn));
+  const end = parseStayDate(dateKey(checkOut));
   while (cur < end) {
     dates.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return dates;
 }
@@ -64,7 +71,7 @@ interface CreateBookingRequestInput {
 }
 
 export async function createBookingRequest(
-  data: CreateBookingRequestInput
+  data: CreateBookingRequestInput,
 ): Promise<Booking> {
   const {
     propertyId,
@@ -77,20 +84,27 @@ export async function createBookingRequest(
     petCount = 0,
   } = data;
 
-  const checkInNorm = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-  const checkOutNorm = new Date(
-    checkOut.getFullYear(),
-    checkOut.getMonth(),
-    checkOut.getDate()
-  );
+  const checkInNorm = parseStayDate(dateKey(checkIn));
+  const checkOutNorm = parseStayDate(dateKey(checkOut));
   const totalNights = Math.round(
-    (checkOutNorm.getTime() - checkInNorm.getTime()) / (1000 * 60 * 60 * 24)
+    (checkOutNorm.getTime() - checkInNorm.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (totalNights <= 0) throw new Error("checkOut must be after checkIn");
+  if (totalNights <= 0)
+    throw new StayValidationError("Check-out must be after check-in.");
+  // Give a useful date error before price/availability errors; recheck under lock at acceptance.
+  validateStay(
+    await getStayPolicy(propertyId),
+    dateKey(checkInNorm),
+    dateKey(checkOutNorm),
+  );
 
   // 1. Confirm availability (checks CONFIRMED bookings + blocked dates)
-  const available = await isDateRangeAvailable(propertyId, checkInNorm, checkOutNorm);
+  const available = await isDateRangeAvailable(
+    propertyId,
+    checkInNorm,
+    checkOutNorm,
+  );
   if (!available) throw new BookingUnavailableError();
 
   // 2. Check for an existing PENDING_PAYMENT booking on the same dates
@@ -110,37 +124,52 @@ export async function createBookingRequest(
     checkInNorm,
     checkOutNorm,
     totalAmount,
-    petCount
+    petCount,
   );
   if (!isValid) throw new BookingAmountMismatchError();
 
   // 4. Get full breakdown to store on booking
-  const breakdown = await calculateBookingTotal(propertyId, checkInNorm, checkOutNorm, petCount);
+  const breakdown = await calculateBookingTotal(
+    propertyId,
+    checkInNorm,
+    checkOutNorm,
+    petCount,
+  );
 
   // 5. Create the booking — dates NOT blocked until CONFIRMED
   const bookingReference = await generateBookingReference();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  const booking = await prisma.booking.create({
-    data: {
+  const booking = await prisma.$transaction(async (tx) => {
+    await lockStaySettings(tx);
+    const stay = await validateBookingStay(
+      tx,
       propertyId,
-      guestName,
-      guestEmail,
-      guestPhone,
-      checkIn: checkInNorm,
-      checkOut: checkOutNorm,
-      totalNights,
-      nightlyTotal: breakdown.nightlyTotal,
-      cleaningFee: breakdown.cleaningFee,
-      petFee: breakdown.petFee > 0 ? breakdown.petFee : null,
-      petCount: petCount > 0 ? petCount : null,
-      taxRate: breakdown.taxRate,
-      taxAmount: breakdown.taxAmount,
-      totalAmount: breakdown.totalAmount,
-      status: "PENDING_PAYMENT",
-      bookingReference,
-      expiresAt,
-    },
+      checkInNorm,
+      checkOutNorm,
+    );
+    return tx.booking.create({
+      data: {
+        propertyId,
+        guestName,
+        guestEmail,
+        guestPhone,
+        checkIn: checkInNorm,
+        checkOut: checkOutNorm,
+        totalNights,
+        minimumStayApplied: stay.minimumNights,
+        nightlyTotal: breakdown.nightlyTotal,
+        cleaningFee: breakdown.cleaningFee,
+        petFee: breakdown.petFee > 0 ? breakdown.petFee : null,
+        petCount: petCount > 0 ? petCount : null,
+        taxRate: breakdown.taxRate,
+        taxAmount: breakdown.taxAmount,
+        totalAmount: breakdown.totalAmount,
+        status: "PENDING_PAYMENT",
+        bookingReference,
+        expiresAt,
+      },
+    });
   });
 
   // 6. Send emails — failures must not roll back the booking
@@ -170,7 +199,7 @@ export async function createBookingRequest(
 
 export async function confirmBooking(
   bookingId: string,
-  adminNotes?: string
+  adminNotes?: string,
 ): Promise<Booking & { property: Property }> {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -181,7 +210,10 @@ export async function confirmBooking(
 
   // Auto-expire if past the deadline (pre-check before hitting the transaction)
   if (booking.expiresAt && booking.expiresAt < new Date()) {
-    await prisma.booking.update({ where: { id: bookingId }, data: { status: "EXPIRED" } });
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: "EXPIRED" },
+    });
     throw new Error("This booking request has expired");
   }
 
@@ -189,11 +221,11 @@ export async function confirmBooking(
   const available = await isDateRangeAvailable(
     booking.propertyId,
     booking.checkIn,
-    booking.checkOut
+    booking.checkOut,
   );
   if (!available) {
     throw new Error(
-      "These dates are no longer available. Another booking was confirmed in the meantime."
+      "These dates are no longer available. Another booking was confirmed in the meantime.",
     );
   }
 
@@ -207,8 +239,10 @@ export async function confirmBooking(
     if (!current) throw new Error("Booking not found");
 
     if (current.status !== "PENDING_PAYMENT") {
-      if (current.status === "CONFIRMED") throw new Error("Booking is already confirmed");
-      if (current.status === "EXPIRED") throw new Error("This booking request has expired");
+      if (current.status === "CONFIRMED")
+        throw new Error("Booking is already confirmed");
+      if (current.status === "EXPIRED")
+        throw new Error("This booking request has expired");
       throw new Error("Cannot confirm a cancelled booking");
     }
 
@@ -254,7 +288,7 @@ export async function confirmBooking(
 
 export async function rejectBooking(
   bookingId: string,
-  reason?: string
+  reason?: string,
 ): Promise<Booking & { property: Property }> {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -313,7 +347,9 @@ interface CreateBookingInput {
   totalAmount: number;
 }
 
-export async function createBookingFromPayment(data: CreateBookingInput): Promise<Booking> {
+export async function createBookingFromPayment(
+  data: CreateBookingInput,
+): Promise<Booking> {
   const {
     stripePaymentIntentId,
     propertyId,
@@ -325,63 +361,90 @@ export async function createBookingFromPayment(data: CreateBookingInput): Promis
     totalAmount,
   } = data;
 
-  const checkInNorm = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-  const checkOutNorm = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+  // Stripe retries must return the accepted booking before rechecking changed rules or availability.
+  const existing = await prisma.booking.findUnique({
+    where: { stripePaymentIntentId },
+  });
+  if (existing) return existing;
+  const checkInNorm = parseStayDate(dateKey(checkIn));
+  const checkOutNorm = parseStayDate(dateKey(checkOut));
   const totalNights = Math.round(
-    (checkOutNorm.getTime() - checkInNorm.getTime()) / (1000 * 60 * 60 * 24)
+    (checkOutNorm.getTime() - checkInNorm.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (totalNights <= 0) throw new Error("checkOut must be after checkIn");
+  if (totalNights <= 0)
+    throw new StayValidationError("Check-out must be after check-in.");
+  validateStay(
+    await getStayPolicy(propertyId),
+    dateKey(checkInNorm),
+    dateKey(checkOutNorm),
+  );
 
   // Availability and amount checks must run before the transaction
-  const available = await isDateRangeAvailable(propertyId, checkInNorm, checkOutNorm);
+  const available = await isDateRangeAvailable(
+    propertyId,
+    checkInNorm,
+    checkOutNorm,
+  );
   if (!available) {
     throw new BookingUnavailableError();
   }
 
-  const isValid = await validateBookingAmount(propertyId, checkInNorm, checkOutNorm, totalAmount);
+  const isValid = await validateBookingAmount(
+    propertyId,
+    checkInNorm,
+    checkOutNorm,
+    totalAmount,
+  );
   if (!isValid) {
-    throw new Error("Payment amount mismatch");
+    throw new BookingAmountMismatchError();
   }
 
   const bookingReference = await generateBookingReference();
 
-  let booking: Booking;
-  try {
-    booking = await prisma.$transaction(async (tx) => {
-      const created = await tx.booking.create({
-        data: {
-          stripePaymentIntentId,
-          propertyId,
-          guestName,
-          guestEmail,
-          guestPhone,
-          checkIn: checkInNorm,
-          checkOut: checkOutNorm,
-          totalNights,
-          totalAmount,
-          status: "CONFIRMED",
-          bookingReference,
-        },
-      });
-
-      const dates = eachDayInRange(checkInNorm, checkOutNorm);
-      await tx.blockedDate.createMany({
-        data: dates.map((date) => ({
-          propertyId,
-          date,
-          reason: "BOOKING" as const,
-          bookingId: created.id,
-        })),
-      });
-
-      return created;
+  const result = await prisma.$transaction(async (tx) => {
+    await lockStaySettings(tx);
+    const duplicate = await tx.booking.findUnique({
+      where: { stripePaymentIntentId },
     });
-  } catch (err) {
-    throw new Error(
-      `Failed to create booking: ${err instanceof Error ? err.message : String(err)}`
+    if (duplicate) return { booking: duplicate, created: false };
+    const stay = await validateBookingStay(
+      tx,
+      propertyId,
+      checkInNorm,
+      checkOutNorm,
     );
-  }
+    const created = await tx.booking.create({
+      data: {
+        stripePaymentIntentId,
+        propertyId,
+        guestName,
+        guestEmail,
+        guestPhone,
+        checkIn: checkInNorm,
+        checkOut: checkOutNorm,
+        totalNights,
+        minimumStayApplied: stay.minimumNights,
+        totalAmount,
+        status: "CONFIRMED",
+        bookingReference,
+      },
+    });
+
+    const dates = eachDayInRange(checkInNorm, checkOutNorm);
+    await tx.blockedDate.createMany({
+      data: dates.map((date) => ({
+        propertyId,
+        date,
+        reason: "BOOKING" as const,
+        bookingId: created.id,
+      })),
+    });
+
+    return { booking: created, created: true };
+  });
+  const booking = result.booking;
+  if (!result.created) return booking;
 
   try {
     const bookingWithProperty = await prisma.booking.findUniqueOrThrow({
@@ -403,7 +466,8 @@ export async function cancelBooking(bookingId: string): Promise<void> {
       select: { status: true },
     });
     if (!existing) throw new Error("Booking not found");
-    if (existing.status === "CANCELLED") throw new Error("Booking is already cancelled");
+    if (existing.status === "CANCELLED")
+      throw new Error("Booking is already cancelled");
 
     await tx.booking.update({
       where: { id: bookingId },

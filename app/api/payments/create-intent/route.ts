@@ -12,10 +12,11 @@ import {
   BookingAmountMismatchError,
 } from "@/lib/bookings";
 import { bookingLimiter } from "@/lib/rate-limit";
+import { parseStayDate, todayAtProperty, stayNights } from "@/lib/stay-dates";
+import { StayValidationError } from "@/lib/stay-rules";
 
 function parseDateLocal(str: string): Date {
-  const [y, m, d] = str.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return parseStayDate(str);
 }
 
 const bodySchema = z.object({
@@ -67,22 +68,24 @@ export async function POST(request: NextRequest) {
   const { propertyId, guestName, guestEmail, guestPhone, checkIn, checkOut, totalAmount, petCount } =
     parsed.data;
 
-  const checkInDate = parseDateLocal(checkIn);
-  const checkOutDate = parseDateLocal(checkOut);
+  let checkInDate: Date;
+  let checkOutDate: Date;
+  try {
+    checkInDate = parseDateLocal(checkIn);
+    checkOutDate = parseDateLocal(checkOut);
+  } catch {
+    return NextResponse.json({ error: "Please choose real calendar dates." }, { status: 400 });
+  }
 
   // Date validations
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (checkInDate < today) {
+  if (checkIn < todayAtProperty()) {
     return NextResponse.json(
       { error: "Check-in date must be today or in the future." },
       { status: 400 }
     );
   }
 
-  const totalNights = Math.round(
-    (checkOutDate.getTime() - checkInDate.getTime()) / 86400000
-  );
+  const totalNights = stayNights(checkIn, checkOut);
   if (totalNights <= 0) {
     return NextResponse.json(
       { error: "Check-out must be after check-in." },
@@ -115,6 +118,9 @@ export async function POST(request: NextRequest) {
       status: "PENDING_PAYMENT",
     });
   } catch (err) {
+    if (err instanceof StayValidationError) {
+      return NextResponse.json({ error: err.message, code: err.code, minimumNights: err.minimumNights, earliestCheckout: err.earliestCheckout }, { status: 400 });
+    }
     if (err instanceof BookingUnavailableError) {
       return NextResponse.json(
         {

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateBookingTotal } from "@/lib/pricing";
+import { parseStayDate, todayAtProperty } from "@/lib/stay-dates";
+import { getStayPolicy } from "@/lib/stay-policy";
+import { validateStay, StayValidationError } from "@/lib/stay-rules";
 
 const querySchema = z.object({
   checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -9,8 +12,7 @@ const querySchema = z.object({
 });
 
 function parseDateLocal(str: string): Date {
-  const [y, m, d] = str.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return parseStayDate(str);
 }
 
 export async function GET(
@@ -31,13 +33,11 @@ export async function GET(
   }
 
   const { checkIn: checkInStr, checkOut: checkOutStr, petCount } = parsed.data;
-  const checkIn = parseDateLocal(checkInStr);
-  const checkOut = parseDateLocal(checkOutStr);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (checkIn < today) {
+  let checkIn: Date;
+  let checkOut: Date;
+  try { checkIn = parseDateLocal(checkInStr); checkOut = parseDateLocal(checkOutStr); }
+  catch { return NextResponse.json({ error: "Please choose real calendar dates." }, { status: 400 }); }
+  if (checkInStr < todayAtProperty()) {
     return NextResponse.json({ error: "checkIn must not be in the past" }, { status: 400 });
   }
 
@@ -48,9 +48,11 @@ export async function GET(
   const nights = Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000);
 
   try {
+    validateStay(await getStayPolicy(id), checkInStr, checkOutStr);
     const result = await calculateBookingTotal(id, checkIn, checkOut, petCount);
     return NextResponse.json({ ...result, nights });
   } catch (err) {
+    if (err instanceof StayValidationError) return NextResponse.json({ error: err.message, code: err.code, minimumNights: err.minimumNights }, { status: 400 });
     const msg = err instanceof Error ? err.message : "Unknown error";
     if (msg === "Property not found") {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });

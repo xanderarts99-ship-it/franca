@@ -197,7 +197,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
         </div>
 
         {/* ── Two-column layout (shared date-selection context) ── */}
-        <PropertyDateProvider>
+        <PropertyDateProvider propertyId={id}>
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12 lg:gap-16">
 
             {/* Left column */}
