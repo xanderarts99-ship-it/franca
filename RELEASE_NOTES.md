@@ -15,7 +15,7 @@ Production database preparation completed on November 15, 2026. The website code
 
 ## Your next steps
 
-1. Push the feature branch and merge it into whichever branch your existing hosting setup deploys. This work is on `codex/minimum-stay-rules`. A feature-branch push may create a preview rather than update production; use your normal release workflow.
+1. Push the feature branch and merge it into whichever branch your existing hosting setup deploys. This work is on `otg/minimum-stay-rules`. A feature-branch push may create a preview rather than update production; use your normal release workflow.
 2. Keep the existing production environment variables. No new production variable is required. Do not upload `.env.local`, `.local-test/`, Docker credentials, private backups or the locally generated build output.
 3. **Do not rerun the production SQL or run `prisma db push` against production.** The database migration has already been applied and recorded. The normal build command is still `npm run build`; Prisma client generation is included.
 4. Wait for the deployment to succeed. Sign into the live admin, open **Stay rules**, and check that the usual minimum is 2 nights. Open a live home in a guest window and verify one-night checkout is disabled and two nights is allowed. Also verify an edited one-night checkout URL shows the minimum-stay message. These checks do not require submitting a real booking.
