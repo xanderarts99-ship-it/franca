@@ -49,8 +49,8 @@ export async function calculateNightlyTotal(
 
   // Generate all night dates as UTC midnight to match @db.Date storage
   const nights: Date[] = [];
-  const cur = new Date(Date.UTC(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate()));
-  const end = new Date(Date.UTC(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate()));
+  const cur = new Date(Date.UTC(checkIn.getUTCFullYear(), checkIn.getUTCMonth(), checkIn.getUTCDate()));
+  const end = new Date(Date.UTC(checkOut.getUTCFullYear(), checkOut.getUTCMonth(), checkOut.getUTCDate()));
   while (cur < end) {
     nights.push(new Date(cur));
     cur.setUTCDate(cur.getUTCDate() + 1);
@@ -59,8 +59,8 @@ export async function calculateNightlyTotal(
   if (nights.length === 0) throw new Error("No nights in range");
 
   // Query bounds as UTC midnight to match @db.Date storage
-  const queryStart = new Date(Date.UTC(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate()));
-  const queryEnd = new Date(Date.UTC(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate()));
+  const queryStart = new Date(Date.UTC(checkIn.getUTCFullYear(), checkIn.getUTCMonth(), checkIn.getUTCDate()));
+  const queryEnd = new Date(Date.UTC(checkOut.getUTCFullYear(), checkOut.getUTCMonth(), checkOut.getUTCDate()));
 
   // Fetch custom pricing for the date range
   const customPricingRecords = await prisma.propertyPricing.findMany({

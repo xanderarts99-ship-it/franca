@@ -6,6 +6,9 @@ import CheckoutForm from "@/components/public/CheckoutForm";
 import OrderSummary from "@/components/public/OrderSummary";
 import { prisma } from "@/lib/prisma";
 import { calculateBookingTotal } from "@/lib/pricing";
+import { parseStayDate, stayNights } from "@/lib/stay-dates";
+import { getStayPolicy } from "@/lib/stay-policy";
+import { validateStay, StayValidationError } from "@/lib/stay-rules";
 
 export const metadata: Metadata = {
   title: "Complete Your Booking",
@@ -18,8 +21,7 @@ interface PageProps {
 }
 
 function parseDateLocal(str: string): Date {
-  const [y, m, d] = str.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return parseStayDate(str);
 }
 
 export default async function CheckoutPage({ searchParams }: PageProps) {
@@ -42,12 +44,18 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   });
   if (!property) redirect("/");
 
-  const checkInDate  = parseDateLocal(checkIn);
+  try {
+    validateStay(await getStayPolicy(propertyId), checkIn, checkOut);
+  } catch (error) {
+    return <div className="max-w-xl mx-auto px-6 pt-28 pb-20">
+      <h1 className="font-serif text-3xl text-charcoal mb-4">{error instanceof StayValidationError ? "Please adjust your dates" : "Please try again"}</h1>
+      <p className="text-stone mb-6">{error instanceof StayValidationError ? error.message : "We couldn’t check the stay rules right now. Please retry before submitting your booking."}</p>
+      <Link className="text-charcoal underline" href={`/properties/${propertyId}`}>Choose new dates</Link>
+    </div>;
+  }
+  const checkInDate = parseDateLocal(checkIn);
   const checkOutDate = parseDateLocal(checkOut);
-  const nights = Math.round(
-    (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (nights <= 0) redirect(`/properties/${propertyId}`);
+  const nights = stayNights(checkIn, checkOut);
 
   // Calculate full breakdown from pricing library
   let breakdown: {

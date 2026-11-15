@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/admin",                       label: "Bookings",   icon: LayoutDashboard },
   { href: "/admin/properties",            label: "Properties", icon: Building2 },
+  { href: "/admin/stay-rules",            label: "Stay rules", icon: ShieldCheck },
   { href: "/admin/reviews",               label: "Reviews",    icon: Star },
   { href: "/admin/cancellation-policies", label: "Policies",   icon: ShieldCheck },
   { href: "/admin/settings",              label: "Settings",   icon: Settings },

@@ -90,7 +90,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
 
   const where = statusFilter ? { status: { in: statusFilter } } : {};
 
-  const [bookings, total, pendingCount, confirmedCount] = await Promise.all([
+  const [bookings, total, pendingCount, confirmedCount, paymentReviewCount] = await Promise.all([
     prisma.booking.findMany({
       where,
       include: { property: { select: { name: true } } },
@@ -101,6 +101,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     prisma.booking.count({ where }),
     prisma.booking.count({ where: { status: "PENDING_PAYMENT" } }),
     prisma.booking.count({ where: { status: "CONFIRMED" } }),
+    prisma.paymentReview.count({ where: { resolvedAt: null } }),
   ]);
 
   const revenue = (
@@ -123,6 +124,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
 
   return (
     <div>
+      {paymentReviewCount > 0 && <p role="alert" className="mb-6 border-l-4 border-amber-700 bg-amber-50 p-4 text-sm text-amber-950">{paymentReviewCount} {paymentReviewCount === 1 ? "payment needs" : "payments need"} your attention. <Link href="/admin/stay-rules#payment-heading" className="underline font-semibold">Review payments</Link></p>}
       {/* Page heading */}
       <div className="mb-7">
         <h1 className="font-serif text-2xl font-semibold text-charcoal">Bookings</h1>

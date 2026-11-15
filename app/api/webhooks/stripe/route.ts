@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { env } from "@/lib/env";
-import { createBookingFromPayment } from "@/lib/bookings";
+import { createBookingFromPayment, BookingUnavailableError, BookingAmountMismatchError } from "@/lib/bookings";
+import { prisma } from "@/lib/prisma";
+import { parseStayDate } from "@/lib/stay-dates";
+import { StayValidationError } from "@/lib/stay-rules";
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
@@ -26,9 +29,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, ignored: true });
   }
 
+  const intent = event.data.object as Stripe.PaymentIntent;
   try {
-    const intent = event.data.object as Stripe.PaymentIntent;
+    const existing = await prisma.booking.findUnique({ where: { stripePaymentIntentId: intent.id } });
+    if (existing) return NextResponse.json({ received: true });
+    const review = await prisma.paymentReview.findUnique({ where: { paymentIntentId: intent.id } });
+    if (review) return NextResponse.json({ received: true, needsReview: true });
     const meta = intent.metadata;
+    // Manual Payment Links are confirmed by the owner; unrelated Stripe payments
+    // do not carry this old integration's stay metadata and must not create bookings.
+    if (!meta.propertyId && !meta.checkIn && !meta.checkOut) return NextResponse.json({ received: true, ignored: true });
 
     if (
       !meta.propertyId ||
@@ -46,8 +56,14 @@ export async function POST(request: NextRequest) {
         hasCheckIn: !!meta?.checkIn,
         hasCheckOut: !!meta?.checkOut,
       });
-      return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
+      throw new StayValidationError("Payment details are incomplete. Check the payment and contact the guest.");
     }
+
+    // Old integrations may have used ISO midnight; accept that exact representation only.
+    const paymentDate = (value: string) => {
+      try { return parseStayDate(value.replace(/T00:00:00(?:\.000)?Z$/, "")); }
+      catch { throw new StayValidationError("Payment contains invalid stay dates. Check the payment and contact the guest."); }
+    };
 
     await createBookingFromPayment({
       stripePaymentIntentId: intent.id,
@@ -55,13 +71,26 @@ export async function POST(request: NextRequest) {
       guestName: meta.guestName,
       guestEmail: meta.guestEmail,
       guestPhone: meta.guestPhone,
-      checkIn: new Date(meta.checkIn),
-      checkOut: new Date(meta.checkOut),
+      checkIn: paymentDate(meta.checkIn),
+      checkOut: paymentDate(meta.checkOut),
       totalAmount: intent.amount / 100,
     });
 
     return NextResponse.json({ received: true });
   } catch (err) {
+    if (err instanceof StayValidationError || err instanceof BookingUnavailableError || err instanceof BookingAmountMismatchError || (err instanceof Error && err.message === "Property not found")) {
+      // Another copy of this event may have completed while validation was running.
+      const accepted = await prisma.booking.findUnique({ where: { stripePaymentIntentId: intent.id } });
+      if (accepted) return NextResponse.json({ received: true });
+      // A paid event cannot be rejected silently. Persist once, acknowledge retries,
+      // and let Franca reconcile/refund in Stripe without creating an invalid booking.
+      await prisma.paymentReview.upsert({
+        where: { paymentIntentId: intent.id },
+        create: { paymentIntentId: intent.id, amount: intent.amount / 100, currency: intent.currency, reason: err.message },
+        update: {},
+      });
+      return NextResponse.json({ received: true, needsReview: true });
+    }
     console.error("[WEBHOOK] Processing failed:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }

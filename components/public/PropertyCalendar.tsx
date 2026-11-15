@@ -10,6 +10,8 @@ import {
 } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { addDays, todayAtProperty, formatStayDate } from "@/lib/stay-dates";
+import { checkoutAllowed, resolveMinimumStay, type StayPolicy } from "@/lib/stay-rules";
 
 // ── Shared date-selection context ─────────────────────────────────────────────
 
@@ -18,6 +20,9 @@ interface DateSelectionCtx {
   checkOut: string;  // "YYYY-MM-DD" or ""
   setDates: (checkIn: string, checkOut: string) => void;
   clearDates: () => void;
+  policy: StayPolicy | null;
+  policyError: boolean;
+  reloadPolicy: () => void;
 }
 
 export const PropertyDateContext = createContext<DateSelectionCtx>({
@@ -25,15 +30,33 @@ export const PropertyDateContext = createContext<DateSelectionCtx>({
   checkOut: "",
   setDates: () => {},
   clearDates: () => {},
+  policy: null,
+  policyError: false,
+  reloadPolicy: () => {},
 });
 
 export function PropertyDateProvider({
   children,
+  propertyId,
 }: {
   children: React.ReactNode;
+  propertyId: string;
 }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
+  const [policy, setPolicy] = useState<StayPolicy | null>(null);
+  const [policyError, setPolicyError] = useState(false);
+  const [policyAttempt, setPolicyAttempt] = useState(0);
+  const reloadPolicy = useCallback(() => setPolicyAttempt((n) => n + 1), []);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/properties/${propertyId}/stay-rules`, { cache: "no-store", signal: controller.signal })
+      .then(async (res) => { if (!res.ok) throw new Error("rules"); return res.json() as Promise<StayPolicy>; })
+      .then((value) => { setPolicy(value); setPolicyError(false); })
+      .catch(() => { if (!controller.signal.aborted) { setPolicy(null); setPolicyError(true); } });
+    window.addEventListener("focus", reloadPolicy);
+    return () => { controller.abort(); window.removeEventListener("focus", reloadPolicy); };
+  }, [propertyId, policyAttempt, reloadPolicy]);
 
   const setDates = useCallback((ci: string, co: string) => {
     setCheckIn(ci);
@@ -47,7 +70,7 @@ export function PropertyDateProvider({
 
   return (
     <PropertyDateContext.Provider
-      value={{ checkIn, checkOut, setDates, clearDates }}
+      value={{ checkIn, checkOut, setDates, clearDates, policy, policyError, reloadPolicy }}
     >
       {children}
     </PropertyDateContext.Provider>
@@ -67,8 +90,7 @@ function toKey(y: number, m: number, d: number): string {
 }
 
 function todayKey(): string {
-  const d = new Date();
-  return toKey(d.getFullYear(), d.getMonth(), d.getDate());
+  return todayAtProperty();
 }
 
 // Returns the first blocked key strictly after `afterKey`, or null.
@@ -93,7 +115,7 @@ interface MonthGridProps {
   checkOut: string;
   hovered: string;
   // checkIn selected but no checkOut yet → upper bound for selectable checkout
-  checkoutLimit: string | null;
+  policy: StayPolicy;
   onDayClick: (key: string) => void;
   onDayHover: (key: string) => void;
   onMouseLeave: () => void;
@@ -101,7 +123,7 @@ interface MonthGridProps {
 
 function MonthGrid({
   year, month, blockedSet, pricingMap, baseRate, today,
-  checkIn, checkOut, hovered, checkoutLimit,
+  checkIn, checkOut, hovered, policy,
   onDayClick, onDayHover, onMouseLeave,
 }: MonthGridProps) {
   const firstDow = new Date(year, month, 1).getDay();
@@ -144,10 +166,11 @@ function MonthGrid({
           const isCustomPrice = pricingMap.has(key);
 
           // Is this day selectable?
-          const isDisabled =
-            isPast ||
-            isBlocked ||
-            !!(checkIn && !checkOut && checkoutLimit !== null && key >= checkoutLimit);
+          const choosingCheckout = !!checkIn && !checkOut && key > checkIn;
+          const minimum = resolveMinimumStay(policy, choosingCheckout ? checkIn : key).minimumNights;
+          const isDisabled = isPast || (choosingCheckout
+            ? !checkoutAllowed(checkIn, key, minimum, blockedSet)
+            : isBlocked || !checkoutAllowed(key, addDays(key, minimum), minimum, blockedSet));
 
           // Is this day inside the highlighted range?
           const isInRange =
@@ -172,12 +195,13 @@ function MonthGrid({
               <button
                 type="button"
                 disabled={isDisabled}
+                aria-label={`${formatStayDate(key)}, ${choosingCheckout ? "checkout" : "arrival"}${isDisabled ? ", unavailable" : ""}`}
                 onClick={() => !isDisabled && onDayClick(key)}
                 onMouseEnter={() => !isDisabled && onDayHover(key)}
                 className={cn(
                   "relative z-10 w-full flex flex-col items-center justify-center py-1.5 gap-0.5 rounded-lg transition-colors select-none",
                   isDisabled && "opacity-30 cursor-not-allowed",
-                  isBlocked && !isPast && "line-through",
+                  isBlocked && isDisabled && !isPast && "line-through",
                   isEndpoint && "bg-sand text-white font-semibold",
                   isToday && !isEndpoint && "ring-1 ring-sand font-semibold text-charcoal",
                   !isDisabled && !isEndpoint && "text-charcoal hover:bg-sand/15 cursor-pointer",
@@ -208,28 +232,25 @@ interface PropertyCalendarProps {
 }
 
 export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) {
-  const { checkIn, checkOut, setDates, clearDates } = useContext(PropertyDateContext);
+  const { checkIn, checkOut, setDates, clearDates, policy, policyError, reloadPolicy } = useContext(PropertyDateContext);
 
-  const now = new Date();
+  const now = new Date(`${todayAtProperty()}T12:00:00`);
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   // Index of the first displayed month (0 = current month)
   const [offset, setOffset] = useState(0);
 
-  const firstMonth = useMemo(() => {
-    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    return { year: d.getFullYear(), month: d.getMonth() };
-  }, [offset, now.getFullYear(), now.getMonth()]);
-
-  const secondMonth = useMemo(() => {
-    const d = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1);
-    return { year: d.getFullYear(), month: d.getMonth() };
-  }, [offset, now.getFullYear(), now.getMonth()]);
+  const firstDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const secondDate = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1);
+  const firstMonth = { year: firstDate.getFullYear(), month: firstDate.getMonth() };
+  const secondMonth = { year: secondDate.getFullYear(), month: secondDate.getMonth() };
 
   const [blockedSet, setBlockedSet] = useState<Set<string>>(new Set());
   const [pricingMap, setPricingMap] = useState<Map<string, number>>(new Map());
   const [baseRate, setBaseRate] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [hovered, setHovered] = useState("");
 
   // Fetch availability + pricing for both visible months whenever they change
@@ -240,7 +261,7 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
       const res = await fetch(
         `/api/properties/${propertyId}/availability?month=${month + 1}&year=${year}`
       );
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Availability could not be loaded");
       const data = (await res.json()) as { blockedDates: string[] };
       return data.blockedDates;
     }
@@ -249,7 +270,7 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
       const res = await fetch(
         `/api/properties/${propertyId}/pricing-calendar?month=${month + 1}&year=${year}`
       );
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Prices could not be loaded");
       const data = (await res.json()) as { pricing: { date: string; price: number }[]; baseRate: number };
       if (!cancelled) setBaseRate(data.baseRate);
       return data.pricing;
@@ -258,18 +279,26 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
     async function load() {
       setLoading(true);
       try {
-        const [d1, d2, p1, p2] = await Promise.all([
-          fetchAvailability(firstMonth.year, firstMonth.month),
-          fetchAvailability(secondMonth.year, secondMonth.month),
+        const months = new Map<string, { year: number; month: number }>();
+        const includeMonth = (year: number, month: number) => { const d = new Date(year, month, 1); months.set(`${d.getFullYear()}-${d.getMonth()}`, { year: d.getFullYear(), month: d.getMonth() }); };
+        // Look ahead through the full 30-night window, even at the visible month's end.
+        // Four months cover late-January arrivals whose 30 nights extend through March.
+        for (let extra = 0; extra < 4; extra++) includeMonth(firstMonth.year, firstMonth.month + extra);
+        if (checkIn) { const [year, month] = checkIn.split("-").map(Number); for (let extra = 0; extra < 3; extra++) includeMonth(year, month - 1 + extra); }
+        const [days, p1, p2] = await Promise.all([
+          Promise.all([...months.values()].map((m) => fetchAvailability(m.year, m.month))),
           fetchPricing(firstMonth.year, firstMonth.month),
           fetchPricing(secondMonth.year, secondMonth.month),
         ]);
         if (!cancelled) {
-          setBlockedSet(new Set([...d1, ...d2]));
+          setBlockedSet(new Set(days.flat()));
+          setLoadError(false);
           const map = new Map<string, number>();
           for (const { date, price } of [...p1, ...p2]) map.set(date, price);
           setPricingMap(map);
         }
+      } catch {
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -277,7 +306,7 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
 
     load();
     return () => { cancelled = true; };
-  }, [propertyId, firstMonth.year, firstMonth.month, secondMonth.year, secondMonth.month]);
+  }, [propertyId, firstMonth.year, firstMonth.month, secondMonth.year, secondMonth.month, checkIn, attempt]);
 
   // Upper bound for checkout selection: first blocked date after checkIn
   const checkoutLimit: string | null = useMemo(() => {
@@ -286,6 +315,9 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
   }, [checkIn, checkOut, blockedSet]);
 
   const today = todayKey();
+  const minimum = policy && checkIn ? resolveMinimumStay(policy, checkIn).minimumNights : null;
+  const earliest = minimum && checkIn ? addDays(checkIn, minimum) : null;
+  const noValidStay = !!(earliest && checkoutLimit && checkoutLimit < earliest);
 
   function handleDayClick(key: string) {
     if (!checkIn) {
@@ -368,8 +400,9 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
         </div>
       </div>
 
+      {minimum && earliest && <p className="mb-4 text-sm text-stone" role="status">Minimum stay for this arrival: <strong className="text-charcoal">{minimum} nights</strong>. Choose checkout on or after {formatStayDate(earliest)}.{noValidStay && " There are not enough consecutive available nights. Please choose another arrival."}</p>}
       {/* Calendar grid or loader */}
-      {loading ? (
+      {loadError || policyError ? <div role="alert" className="py-8 text-sm text-red-800"><p>We couldn’t load availability or stay rules. Please retry before choosing dates.</p><button className="underline min-h-11" onClick={() => { setAttempt((n) => n + 1); reloadPolicy(); }}>Try again</button></div> : loading || !policy ? (
         <div className="flex items-center justify-center py-16 text-stone">
           <Loader2 size={22} className="animate-spin text-sand mr-2" />
           <span className="text-sm">Loading availability &amp; pricing…</span>
@@ -386,7 +419,7 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
             checkIn={checkIn}
             checkOut={checkOut}
             hovered={hovered}
-            checkoutLimit={checkoutLimit}
+            policy={policy}
             onDayClick={handleDayClick}
             onDayHover={handleDayHover}
             onMouseLeave={handleMouseLeave}
@@ -401,7 +434,7 @@ export default function PropertyCalendar({ propertyId }: PropertyCalendarProps) 
             checkIn={checkIn}
             checkOut={checkOut}
             hovered={hovered}
-            checkoutLimit={checkoutLimit}
+            policy={policy}
             onDayClick={handleDayClick}
             onDayHover={handleDayHover}
             onMouseLeave={handleMouseLeave}

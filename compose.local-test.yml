@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:17-alpine
+    ports:
+      - "127.0.0.1:55432:5432"
+    environment:
+      POSTGRES_DB: rammies_test
+      POSTGRES_USER: rammies_test
+      POSTGRES_PASSWORD: ${LOCAL_TEST_DB_PASSWORD:?Run npm run test:local:setup first}
+    volumes:
+      - local_test_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rammies_test -d rammies_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  local_test_pgdata:

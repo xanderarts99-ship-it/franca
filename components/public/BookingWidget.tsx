@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Users, AlertCircle, X, Loader2, PawPrint } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PropertyDateContext } from "@/components/public/PropertyCalendar";
+import { formatStayDate, stayNights, addDays } from "@/lib/stay-dates";
+import { resolveMinimumStay } from "@/lib/stay-rules";
 
 interface PricingResult {
   nightlyTotal: number;
@@ -50,50 +52,41 @@ function groupBreakdown(breakdown: { date: string; price: number }[]): { price: 
 
 export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, petFeeAmount }: BookingWidgetProps) {
   const router = useRouter();
-  const { checkIn, checkOut, clearDates } = useContext(PropertyDateContext);
+  const { checkIn, checkOut, clearDates, policy, policyError, reloadPolicy } = useContext(PropertyDateContext);
   const [petCount, setPetCount] = useState(0);
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
-    const diff = (parseLocal(checkOut).getTime() - parseLocal(checkIn).getTime()) / 86400000;
-    return diff > 0 ? Math.round(diff) : 0;
+    return Math.max(0, stayNights(checkIn, checkOut));
   }, [checkIn, checkOut]);
 
-  const [pricing, setPricing] = useState<PricingResult | null>(null);
-  const [loadingPricing, setLoadingPricing] = useState(false);
-  const [pricingError, setPricingError] = useState(false);
+  const [priceResponse, setPriceResponse] = useState<{ key: string; data: PricingResult | null; error: boolean } | null>(null);
+  const priceKey = policy && checkIn && checkOut && nights > 0 ? `/api/properties/${propertyId}/pricing?checkIn=${checkIn}&checkOut=${checkOut}&petCount=${petCount}&policyVersion=${policy.version ?? 1}` : "";
+  const pricing = priceResponse?.key === priceKey ? priceResponse.data : null;
+  const loadingPricing = !!priceKey && priceResponse?.key !== priceKey;
+  const pricingError = priceResponse?.key === priceKey && priceResponse.error;
   const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
-    if (!checkIn || !checkOut || nights <= 0) {
-      setPricing(null);
-      return;
-    }
-
+    if (!priceKey) return;
     let cancelled = false;
-    setLoadingPricing(true);
-    setPricingError(false);
-
-    const petParam = petCount > 0 ? `&petCount=${petCount}` : "";
-    fetch(`/api/properties/${propertyId}/pricing?checkIn=${checkIn}&checkOut=${checkOut}${petParam}`)
+    fetch(priceKey)
       .then(async (res) => {
         if (!res.ok) throw new Error("pricing failed");
         return res.json() as Promise<PricingResult>;
       })
       .then((data) => {
-        if (!cancelled) { setPricing(data); setLoadingPricing(false); }
+        if (!cancelled) setPriceResponse({ key: priceKey, data, error: false });
       })
       .catch(() => {
-        if (!cancelled) { setPricingError(true); setLoadingPricing(false); }
+        if (!cancelled) setPriceResponse({ key: priceKey, data: null, error: true });
       });
 
     return () => { cancelled = true; };
-  }, [checkIn, checkOut, nights, propertyId, petCount]);
-
-  const displayTotal = pricing?.totalAmount ?? (nights > 0 ? nights * nightlyRate : 0);
+  }, [priceKey]);
 
   function handleBook() {
-    if (!checkIn || !checkOut || nights <= 0) return;
+    if (!canBook || !checkIn || !checkOut) return;
     const total = pricing?.totalAmount ?? nights * nightlyRate;
     setNavigating(true);
     const petParam = petCount > 0 ? `&petCount=${petCount}` : "";
@@ -102,7 +95,8 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
     );
   }
 
-  const canBook = checkIn && checkOut && nights > 0 && !loadingPricing && !navigating;
+  const minimum = policy ? (checkIn ? resolveMinimumStay(policy, checkIn).minimumNights : policy.propertyMinimum ?? policy.defaultMinimum) : null;
+  const canBook = !!(checkIn && checkOut && minimum && nights >= minimum && nights <= 30 && pricing && !pricingError && !loadingPricing && !navigating && !policyError);
   const displayPetFeePerPet = petFeeAmount ?? 100;
 
   return (
@@ -116,6 +110,7 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
       </div>
 
       {/* Selected dates summary */}
+      <div className="mb-4 text-sm text-stone" aria-live="polite">{policyError ? <><p>Stay rules could not be loaded.</p><button className="underline min-h-11" onClick={reloadPolicy}>Try again</button></> : minimum ? <p><strong className="text-charcoal">{minimum}-night minimum</strong>{checkIn ? " for this arrival" : " · varies during busy periods"}.{checkIn && checkOut && nights < minimum && ` Please choose checkout on or after ${formatStayDate(addDays(checkIn, minimum))}.`}</p> : "Loading stay rules…"}</div>
       {checkIn || checkOut ? (
         <div className="mb-4">
           <div className="grid grid-cols-2 gap-2">
@@ -157,16 +152,7 @@ export default function BookingWidget({ propertyId, nightlyRate, petsAllowed, pe
               <span className="text-xs">Calculating…</span>
             </div>
           ) : pricingError ? (
-            <>
-              <div className="flex justify-between text-stone">
-                <span>${nightlyRate.toLocaleString()} × {nights} night{nights > 1 ? "s" : ""}</span>
-                <span className="text-charcoal font-medium">${(nights * nightlyRate).toLocaleString()}</span>
-              </div>
-              <div className="border-t border-warm-border pt-2 flex justify-between font-semibold text-charcoal">
-                <span>Total</span>
-                <span>${(nights * nightlyRate).toLocaleString()}</span>
-              </div>
-            </>
+            <p role="alert" className="text-sm text-red-800">We couldn’t calculate the current price. Please refresh and check your dates before booking.</p>
           ) : pricing ? (
             <>
               {pricing.hasCustomPricing ? (

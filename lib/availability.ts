@@ -1,17 +1,17 @@
 import { prisma } from "./prisma";
 
 function toKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return date.toISOString().slice(0, 10);
 }
 
 /** Returns every date in [checkIn, checkOut) as Date objects. */
 function eachDayInRange(checkIn: Date, checkOut: Date): Date[] {
   const dates: Date[] = [];
-  const cur = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-  const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+  const cur = new Date(Date.UTC(checkIn.getUTCFullYear(), checkIn.getUTCMonth(), checkIn.getUTCDate()));
+  const end = new Date(Date.UTC(checkOut.getUTCFullYear(), checkOut.getUTCMonth(), checkOut.getUTCDate()));
   while (cur < end) {
     dates.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return dates;
 }
@@ -26,8 +26,8 @@ export async function getBlockedDatesForProperty(
   month: number,
   year: number
 ): Promise<string[]> {
-  const startOfMonth = new Date(year, month - 1, 1);
-  const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+  const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
+  const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
   try {
     const [blockedDateRecords, confirmedBookings] = await Promise.all([
@@ -78,8 +78,8 @@ export async function isDateRangeAvailable(
   checkIn: Date,
   checkOut: Date
 ): Promise<boolean> {
-  const checkInNorm = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-  const checkOutNorm = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+  const checkInNorm = new Date(Date.UTC(checkIn.getUTCFullYear(), checkIn.getUTCMonth(), checkIn.getUTCDate()));
+  const checkOutNorm = new Date(Date.UTC(checkOut.getUTCFullYear(), checkOut.getUTCMonth(), checkOut.getUTCDate()));
 
   try {
     const [blockedCount, overlappingBookings] = await Promise.all([
